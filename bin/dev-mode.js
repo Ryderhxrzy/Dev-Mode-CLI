@@ -24,6 +24,17 @@ const {
 } = require('../lib/adb');
 const { saveConfig, getLastDevice } = require('../lib/config');
 const { discoverBridge, callBridge } = require('../lib/bridge');
+const {
+  runExpoStart,
+  runExpoAndroid,
+  reloadApp,
+  openDevMenu,
+  buildAndroid,
+  installApk,
+  cleanProject,
+  streamLogs,
+  reversePort
+} = require('../lib/dev');
 
 const args = process.argv.slice(2);
 
@@ -54,11 +65,26 @@ function showHelp() {
     ${colors.yellow('usb off')}             Turn OFF USB Debugging
     ${colors.yellow('speed <0.5|1.0|0.0>')}  Set UI animation speed scale (Speed Booster)
 
+  ${colors.bold('EXPO & ANDROID DEV SUITE:')}
+    ${colors.yellow('run / start')}           Start Expo development server (npx expo start)
+    ${colors.yellow('debug:android')}         Build & launch debug app on device (npx expo run:android)
+    ${colors.yellow('reload')}                Fast-refresh active app (Metro endpoint & device keyevent)
+    ${colors.yellow('menu')}                  Open React Native / Expo Dev Menu on device screen
+    ${colors.yellow('build:android')}         Build APK with native Gradle (assembleDebug / assembleRelease)
+    ${colors.yellow('install:apk [file]')}    Auto-discover and install latest debug APK to device
+    ${colors.yellow('clean')}                 Clean Gradle and Metro project caches
+    ${colors.yellow('logs')}                  Stream filtered React Native & Expo device logcat
+    ${colors.yellow('reverse [port]')}        Set up ADB reverse port for Metro (default: 8081)
+
   ${colors.bold('EXAMPLES:')}
     ${colors.gray('$')} devmode on
     ${colors.gray('$')} devmode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
+    ${colors.gray('$')} devmode run             ${colors.dim('# Starts Expo dev server')}
+    ${colors.gray('$')} devmode debug:android   ${colors.dim('# Builds & launches on connected Android')}
+    ${colors.gray('$')} devmode reload          ${colors.dim('# Instant hot-reload active app')}
+    ${colors.gray('$')} devmode build:android   ${colors.dim('# Compiles debug APK via Gradle')}
+    ${colors.gray('$')} devmode install:apk     ${colors.dim('# Installs latest built APK to phone')}
     ${colors.gray('$')} devmode grant           ${colors.dim('# Grants permissions to Dev Mode mobile app')}
-    ${colors.gray('$')} devmode speed 0.5       ${colors.dim('# Speeds up device animations by 2x')}
     ${colors.gray('$')} devmode status
 `);
 }
@@ -591,6 +617,62 @@ async function main() {
         console.log(`  ${symbols.cross} ${colors.red('No Dev Mode Mobile App found on local Wi-Fi.')}`);
         console.log(`  ${colors.dim('Make sure your phone is connected to the same Wi-Fi and Dev Mode app or widget is active.')}\n`);
       }
+      break;
+
+    case 'run':
+    case 'start':
+      await runExpoStart(args.slice(1));
+      break;
+
+    case 'debug:android':
+    case 'run:android':
+    case 'debug':
+      if (subCmd === 'android') {
+        await runExpoAndroid(args.slice(2));
+      } else {
+        await runExpoAndroid(args.slice(1));
+      }
+      break;
+
+    case 'reload':
+    case 'refresh':
+    case 'r':
+      await reloadApp();
+      break;
+
+    case 'menu':
+    case 'm':
+      openDevMenu();
+      break;
+
+    case 'build:android':
+    case 'build':
+      {
+        const isRelease = args.includes('--release');
+        const extraBuildArgs = args.slice(1).filter(a => a !== 'android' && a !== '--release');
+        await buildAndroid(isRelease, extraBuildArgs);
+      }
+      break;
+
+    case 'install:apk':
+    case 'install':
+      {
+        const targetApk = subCmd === 'apk' ? extraArg : (subCmd || extraArg);
+        installApk(targetApk);
+      }
+      break;
+
+    case 'clean':
+      await cleanProject();
+      break;
+
+    case 'logs':
+    case 'logcat':
+      streamLogs();
+      break;
+
+    case 'reverse':
+      reversePort(subCmd ? parseInt(subCmd, 10) : 8081);
       break;
 
     case 'help':

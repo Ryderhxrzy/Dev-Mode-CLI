@@ -158,6 +158,14 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 📊 **Device Diagnostics Dashboard** | `devmode status` | Displays live device model, connection type, IP address, active port, and status flags | `YES` |
 | 🎨 **Official Green ASCII Icon** | `devmode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
 | 🌉 **Rootless Wi-Fi Bridge** | `devmode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
+| 🚀 **Start Expo Server** | `devmode run` / `start` | Launches the Expo Metro bundler development server | `YES` |
+| 📱 **Launch Debug Build** | `devmode debug:android` | Builds and launches debug app on Android device & auto-grants permissions | `YES` |
+| 🔄 **Instant Fast-Refresh** | `devmode reload` | Sends hot-reload signal to Metro bundler and connected device | `YES` |
+| 📋 **Open Dev Menu** | `devmode menu` | Opens React Native / Expo developer menu directly on device screen | `YES` |
+| 🏗️ **Native Gradle Build** | `devmode build:android` | Compiles native Android APK using Gradle (`assembleDebug`/`assembleRelease`) | `YES` |
+| 📲 **One-Tap APK Installer** | `devmode install:apk` | Auto-detects latest compiled APK and installs it to connected device | `YES` |
+| 🧹 **Deep Cache Cleaner** | `devmode clean` | Purges Gradle build caches and `.expo` Metro bundler caches | `YES` |
+| 📜 **Live Device Logcat** | `devmode logs` | Streams filtered React Native, Expo, and AndroidRuntime crash logs | `YES` |
 | 🪶 **Zero Dependencies** | Built-in Node.js | Pure lightweight Node.js standard library with millisecond execution speed | `YES` |
 
 ---
@@ -180,6 +188,18 @@ devmode wifi on                # Enable Wireless Debugging and auto-connect
 devmode wifi off               # Disconnect and disable Wireless Debugging
 devmode wifi connect           # Reconnect to discovered or cached wireless device
 devmode wifi connect <ip:port> # Connect to a specific endpoint
+
+# Expo & Android Dev Suite
+devmode run                    # Start Expo development server (npx expo start)
+devmode debug:android          # Build & launch debug app on device (npx expo run:android)
+devmode reload                 # Fast-refresh active app (Metro & device)
+devmode menu                   # Open React Native Dev Menu on device screen
+devmode build:android          # Compile debug APK via Gradle (assembleDebug)
+devmode build:android --release# Compile release APK via Gradle (assembleRelease)
+devmode install:apk            # Auto-detect latest APK and install to device
+devmode clean                  # Clean Gradle and Metro project caches
+devmode logs                   # Stream filtered React Native / Expo logs
+devmode reverse                # Set up ADB reverse port for Metro (8081)
 
 # Hardware & System Tools
 devmode usb on                 # Enable USB Debugging specifically
