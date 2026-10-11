@@ -11,7 +11,7 @@
     <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square" alt="License" /></a>
   </p>
   <p>
-    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.1-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
+    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.2-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
     <img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-22C55E?style=flat-square" alt="Dependencies" />
     <img src="https://img.shields.io/badge/Wireless%20ADB-Auto--Connect-7F52FF?style=flat-square" alt="Wireless ADB" />
     <img src="https://img.shields.io/badge/Telemetry-Zero-10B981?style=flat-square" alt="Telemetry" />
@@ -31,13 +31,12 @@
 No installation required! Run instantly using `npx`:
 
 ```text
-  ┌──────────┐
-  │  ╭────╮  │   ___  ______   __  __  __  ____  ___  ____
-  │  │ ⚡ │  │  / _ \/ __/\ \ / / /  |/  / __ \/ _ \/ __/
-  │  ╰────╯  │ / // / _/   \ V / / /|_/ / /_/ / // / _/  
-  │   [DEV]  │/____/___/    \_/ /_/  /_/\____/____/___/  
-  └──────────┘  ⚡ Android Quick-Toggle & Wireless ADB CLI  v1.0.1
-  ───────────────────────────────────────────────────────────────────
+   ___  ______   __  __  __  ____  ___  ____
+  / _ \/ __/\ \ / / /  |/  / __ \/ _ \/ __/
+ / // / _/   \ V / / /|_/ / /_/ / // / _/  
+/____/___/    \_/ /_/  /_/\____/____/___/  
+  ⚡ Android Quick-Toggle & Wireless ADB CLI  v1.0.2
+  ───────────────────────────────────────────────────
 
                     *:                    .*.
                    *@@.                   @@#
@@ -158,6 +157,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 🏎️ **Speed Booster (Animations)** | `dev-mode speed 0.5` | Sets window, transition, and animator scales to 0.5x for ultra-fast testing | `YES` |
 | 📊 **Device Diagnostics Dashboard** | `dev-mode status` | Displays live device model, connection type, IP address, active port, and status flags | `YES` |
 | 🎨 **Official Green ASCII Icon** | `dev-mode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
+| 🌉 **Rootless Wi-Fi Bridge** | `dev-mode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
 | 🪶 **Zero Dependencies** | Built-in Node.js | Pure lightweight Node.js standard library with millisecond execution speed | `YES` |
 
 ---
@@ -171,7 +171,8 @@ npx dev-mode off                    # Turn OFF Developer Options only
 npx dev-mode icon                   # Display official Dev Mode green ASCII art icon
 npx dev-mode status                 # Inspect live device details, IP, port, and status flags
 
-# Mobile App Permissions
+# Mobile App Bridge & Permissions
+npx dev-mode bridge                 # Inspect direct Wi-Fi bridge to Mobile App (ADB bypassed)
 npx dev-mode grant                  # Grant WRITE_SECURE_SETTINGS permission to Dev Mode Mobile App
 
 # Wireless ADB (Auto-Connect)

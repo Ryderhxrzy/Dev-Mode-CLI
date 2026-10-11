@@ -23,6 +23,7 @@ const {
   execAdb
 } = require('../lib/adb');
 const { saveConfig, getLastDevice } = require('../lib/config');
+const { discoverBridge, callBridge } = require('../lib/bridge');
 
 const args = process.argv.slice(2);
 
@@ -37,14 +38,15 @@ function showHelp() {
     ${colors.yellow('icon')}                Display official Dev Mode green ASCII icon
     ${colors.yellow('status')}              Show current device status and IP/Port info
 
-  ${colors.bold('MOBILE APP PERMISSION:')}
+  ${colors.bold('MOBILE APP BRIDGE & PERMISSIONS:')}
+    ${colors.yellow('bridge')}              Discover and inspect direct Wi-Fi bridge to Mobile App
     ${colors.yellow('grant')}               Grant WRITE_SECURE_SETTINGS to Dev Mode mobile app
 
   ${colors.bold('WIRELESS ADB (Auto-Connect):')}
-    ${colors.yellow('wifi on')}             Enable Wireless ADB and ${colors.bold(colors.green('auto-connect'))} over Wi-Fi
-    ${colors.yellow('wifi off')}            Disconnect and disable Wireless ADB
+    ${colors.yellow('wifi on [port]')}        Enable Wireless ADB and ${colors.bold(colors.green('auto-connect'))} over Wi-Fi (dynamic or custom port)
+    ${colors.yellow('wifi off')}              Disconnect and disable Wireless ADB
     ${colors.yellow('wifi connect [ip:port]')} Connect to device over Wi-Fi (auto-detects if omitted)
-    ${colors.yellow('wifi disconnect')}     Disconnect current wireless sessions
+    ${colors.yellow('wifi disconnect')}       Disconnect current wireless sessions
 
   ${colors.bold('USB & SYSTEM CONTROLS:')}
     ${colors.yellow('usb on')}              Turn ON USB Debugging
@@ -114,7 +116,7 @@ async function handleNoDeviceGuide(device = null) {
   }
 }
 
-async function handleWifiOn(targetDevice) {
+async function handleWifiOn(targetDevice, specifiedPort = null) {
   banner();
 
   let activeDevice = targetDevice;
@@ -167,8 +169,19 @@ async function handleWifiOn(targetDevice) {
   }
   console.log(`  ${symbols.check} Local IP detected: ${colors.bold(colors.cyan(ip))}`);
 
-  console.log(`  ${symbols.arrow} Resolving dynamic Wireless ADB port...`);
-  let port = getDeviceWifiPort(activeDevice.serial, 6);
+  let port = null;
+  if (specifiedPort) {
+    const parsed = parseInt(specifiedPort, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      port = parsed;
+      console.log(`  ${symbols.info} Using specified wireless port: ${colors.bold(colors.cyan(String(port)))}`);
+    }
+  }
+
+  if (!port) {
+    console.log(`  ${symbols.arrow} Resolving dynamic Wireless ADB port...`);
+    port = getDeviceWifiPort(activeDevice.serial, 6);
+  }
 
   // If no dynamic TLS port was found (e.g. Android 10 or classic mode), configure standard tcpip 5555
   if (!port) {
@@ -181,7 +194,8 @@ async function handleWifiOn(targetDevice) {
 
   if (!port) {
     console.log(`  ${symbols.warn} ${colors.yellow('Wireless port is still binding or unavailable.')}`);
-    console.log(`  ${colors.dim('You can check the active port on your phone screen or Dev Mode widget.')}\n`);
+    console.log(`  ${colors.dim('Check Developer Options > Wireless Debugging on your phone for the 5-digit port.')}`);
+    console.log(`  ${colors.dim('You can connect directly with: dev-mode wifi on <port>')}\n`);
     return;
   }
 
@@ -204,7 +218,9 @@ async function handleWifiOn(targetDevice) {
     console.log(`  1. Ensure PC and Phone are on the ${colors.bold('same Wi-Fi band')} (e.g. both on 2.4GHz or both on 5GHz).`);
     console.log(`  2. Some routers (PLDT/Converge/Globe) have ${colors.bold('AP Isolation / Client Isolation')} enabled.`);
     console.log(`     Try turning off AP Isolation in your router, or connect your phone to your PC's Mobile Hotspot.`);
-    console.log(`  3. On Android 11+, make sure you allow the "Always allow on this network" pairing prompt if shown.\n`);
+    console.log(`  3. On Android 11+, check the 5-digit port shown in Settings > Wireless Debugging.`);
+    console.log(`     Run: ${colors.cyan(`dev-mode wifi on <port>`)} (e.g. ${colors.cyan(`dev-mode wifi on 40431`)}).`);
+    console.log(`  4. Make sure you allow the "Always allow on this network" pairing prompt if shown.\n`);
   }
 }
 
@@ -257,9 +273,25 @@ async function handleWifiConnect(targetDevice, specifiedTarget) {
   }
 }
 
+async function tryBridgeFallback() {
+  return await discoverBridge();
+}
+
 async function handleStatus(targetDevice) {
   banner();
   if (!targetDevice || targetDevice.isUnauthorized) {
+    const bridge = await tryBridgeFallback();
+    if (bridge && bridge.status) {
+      console.log(`  ${colors.bold(colors.green('📱 DEV MODE MOBILE APP (LOCAL WI-FI BRIDGE)'))}\n`);
+      printKeyValue('Phone IP Address', bridge.ip);
+      printKeyValue('Bridge Port', String(bridge.port));
+      printStatusItem('Developer Options', bridge.status.developerOptions, bridge.status.developerOptions === 'enabled');
+      printStatusItem('USB Debugging', bridge.status.usbDebugging, bridge.status.usbDebugging === 'enabled');
+      printStatusItem('Wireless Debugging', bridge.status.wirelessDebugging, bridge.status.wirelessDebugging === 'enabled');
+      console.log(`\n  ${colors.dim('Connected directly to Dev Mode Mobile App on your local network (ADB bypassed).')}\n`);
+      printQuickActions();
+      return;
+    }
     await handleNoDeviceGuide(targetDevice);
     return;
   }
@@ -291,6 +323,18 @@ async function handleDevOn(targetDevice) {
   banner();
   printDevModeIcon();
   if (!targetDevice || targetDevice.isUnauthorized) {
+    const bridge = await tryBridgeFallback();
+    if (bridge) {
+      console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App'))} at ${colors.cyan(bridge.ip)} (Wi-Fi Bridge)`);
+      console.log(`  ${symbols.arrow} Enabling Developer Options via Mobile App...`);
+      const res = await callBridge(bridge.ip, 'dev/on');
+      if (res.success) {
+        console.log(`  ${symbols.check} ${colors.bold(colors.green('Developer Options: ENABLED'))}`);
+        console.log(`  ${colors.dim('Settings updated directly via Mobile App Bridge (rootless & without ADB).')}\n`);
+        printQuickActions();
+        return;
+      }
+    }
     await handleNoDeviceGuide(targetDevice);
     return;
   }
@@ -307,6 +351,18 @@ async function handleDevOn(targetDevice) {
 async function handleDevOff(targetDevice) {
   banner();
   if (!targetDevice || targetDevice.isUnauthorized) {
+    const bridge = await tryBridgeFallback();
+    if (bridge) {
+      console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App'))} at ${colors.cyan(bridge.ip)} (Wi-Fi Bridge)`);
+      console.log(`  ${symbols.arrow} Disabling Developer Options via Mobile App...`);
+      const res = await callBridge(bridge.ip, 'dev/off');
+      if (res.success) {
+        console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}`);
+        console.log(`  ${colors.dim('Settings updated directly via Mobile App Bridge.')}\n`);
+        printQuickActions();
+        return;
+      }
+    }
     await handleNoDeviceGuide(targetDevice);
     return;
   }
@@ -322,6 +378,21 @@ async function handleDevOff(targetDevice) {
 async function handleUsb(targetDevice, subCommand) {
   banner();
   if (!targetDevice || targetDevice.isUnauthorized) {
+    const bridge = await tryBridgeFallback();
+    if (bridge) {
+      console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App'))} at ${colors.cyan(bridge.ip)} (Wi-Fi Bridge)`);
+      if (subCommand === 'on' || subCommand === 'off') {
+        console.log(`  ${symbols.arrow} Setting USB Debugging to ${subCommand.toUpperCase()} via Mobile App...`);
+        const res = await callBridge(bridge.ip, subCommand === 'on' ? 'usb/on' : 'usb/off');
+        if (res.success) {
+          const stateStr = subCommand === 'on' ? colors.bold(colors.green('ENABLED')) : colors.bold(colors.red('DISABLED'));
+          console.log(`  ${symbols.check} USB Debugging: ${stateStr}`);
+          console.log(`  ${colors.dim(`USB Debugging is now ${subCommand.toUpperCase()} on your device!`)}\n`);
+          printQuickActions();
+          return;
+        }
+      }
+    }
     await handleNoDeviceGuide(targetDevice);
     return;
   }
@@ -407,16 +478,20 @@ async function main() {
     case 'wifi':
     case 'wireless':
       if (subCmd === 'on') {
-        await handleWifiOn(targetDevice);
+        await handleWifiOn(targetDevice, extraArg);
       } else if (subCmd === 'off') {
         await handleWifiOff(targetDevice);
       } else if (subCmd === 'connect') {
         await handleWifiConnect(targetDevice, extraArg);
       } else if (subCmd === 'disconnect') {
         await handleWifiOff(targetDevice);
+      } else if (/^\d+$/.test(subCmd)) {
+        await handleWifiOn(targetDevice, subCmd);
+      } else if (subCmd && subCmd.includes(':')) {
+        await handleWifiConnect(targetDevice, subCmd);
       } else {
         // Default to wifi on if no subcommand specified
-        await handleWifiOn(targetDevice);
+        await handleWifiOn(targetDevice, subCmd || extraArg);
       }
       break;
 
@@ -437,6 +512,24 @@ async function main() {
     case 'icon':
       banner();
       printDevModeIcon();
+      break;
+
+    case 'bridge':
+      banner();
+      console.log(`  ${symbols.info} Searching for Dev Mode Mobile App on local Wi-Fi...`);
+      const bridgeInfo = await discoverBridge();
+      if (bridgeInfo && bridgeInfo.status) {
+        console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App!'))}\n`);
+        printKeyValue('Phone IP Address', bridgeInfo.ip);
+        printKeyValue('Bridge Port', String(bridgeInfo.port));
+        printStatusItem('Developer Options', bridgeInfo.status.developerOptions, bridgeInfo.status.developerOptions === 'enabled');
+        printStatusItem('USB Debugging', bridgeInfo.status.usbDebugging, bridgeInfo.status.usbDebugging === 'enabled');
+        printStatusItem('Wireless Debugging', bridgeInfo.status.wirelessDebugging, bridgeInfo.status.wirelessDebugging === 'enabled');
+        console.log(`\n  ${colors.dim('Bridge is active! You can toggle settings from PC even if USB Debugging is OFF.')}\n`);
+      } else {
+        console.log(`  ${symbols.cross} ${colors.red('No Dev Mode Mobile App found on local Wi-Fi.')}`);
+        console.log(`  ${colors.dim('Make sure your phone is connected to the same Wi-Fi and Dev Mode app or widget is active.')}\n`);
+      }
       break;
 
     case 'help':
