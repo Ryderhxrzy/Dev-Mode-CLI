@@ -163,6 +163,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 📱 **Launch Debug Build** | `devmode debug:android` | Builds and launches debug app on Android device & auto-grants permissions | `YES` |
 | 🔄 **Instant Fast-Refresh** | `devmode reload` | Sends hot-reload signal to Metro bundler and connected device | `YES` |
 | 📋 **Open Dev Menu** | `devmode menu` | Opens React Native / Expo developer menu directly on device screen | `YES` |
+| 📦 **Google Play Bundle** | `devmode build:aab` | Compiles production Android App Bundle (`bundleRelease`) | `YES` |
 | 🏗️ **Native Gradle Build** | `devmode build:android` | Compiles native Android APK using Gradle (`assembleDebug`/`assembleRelease`) | `YES` |
 | 📲 **One-Tap APK Installer** | `devmode install:apk` | Auto-detects latest compiled APK and installs it to connected device | `YES` |
 | 🧹 **Deep Cache Cleaner** | `devmode clean` | Purges Gradle build caches and `.expo` Metro bundler caches | `YES` |
@@ -198,6 +199,7 @@ devmode studio                 # Alias for devmode start --native (lightweight A
 devmode debug:android          # Build & launch debug app on device (npx expo run:android)
 devmode reload                 # Fast-refresh active app (Metro & device)
 devmode menu                   # Open React Native Dev Menu on device screen
+devmode build:aab              # Compile production AAB via Gradle for Google Play (bundleRelease)
 devmode build:android          # Compile debug APK via Gradle (assembleDebug)
 devmode build:android --release# Compile release APK via Gradle (assembleRelease)
 devmode install:apk            # Auto-detect latest APK and install to device

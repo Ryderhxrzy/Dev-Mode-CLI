@@ -71,6 +71,7 @@ function showHelp() {
     ${colors.yellow('debug:android')}          Build & launch debug app on device (npx expo run:android)
     ${colors.yellow('reload')}                 Fast-refresh active app (Metro endpoint & device keyevent)
     ${colors.yellow('menu')}                   Open React Native / Expo Dev Menu on device screen
+    ${colors.yellow('build:aab')}              Build production AAB for Google Play (bundleRelease)
     ${colors.yellow('build:android')}          Build APK with native Gradle (assembleDebug / assembleRelease)
     ${colors.yellow('install:apk [file]')}     Auto-discover and install latest debug APK to device
     ${colors.yellow('clean')}                  Clean Gradle and Metro project caches
@@ -84,6 +85,7 @@ function showHelp() {
     ${colors.gray('$')} devmode start --native  ${colors.dim('# Starts Native Studio for Kotlin/Gradle')}
     ${colors.gray('$')} devmode debug:android   ${colors.dim('# Builds & launches on connected Android')}
     ${colors.gray('$')} devmode reload          ${colors.dim('# Instant hot-reload active app')}
+    ${colors.gray('$')} devmode build:aab       ${colors.dim('# Generates release AAB for Google Play Store')}
     ${colors.gray('$')} devmode build:android   ${colors.dim('# Compiles debug APK via Gradle')}
     ${colors.gray('$')} devmode install:apk     ${colors.dim('# Installs latest built APK to phone')}
     ${colors.gray('$')} devmode grant           ${colors.dim('# Grants permissions to Dev Mode mobile app')}
@@ -409,7 +411,6 @@ async function handleStatus(targetDevice) {
 }
 
 async function handleDevOn(targetDevice) {
-  banner();
   printDevModeIcon();
   if (!targetDevice || targetDevice.isUnauthorized) {
     const bridge = await tryBridgeFallback();
@@ -599,7 +600,6 @@ async function main() {
       break;
 
     case 'icon':
-      banner();
       printDevModeIcon();
       break;
 
@@ -662,12 +662,25 @@ async function main() {
       openDevMenu();
       break;
 
+    case 'build:aab':
+    case 'bundle':
+    case 'build:bundle':
+      {
+        const isDebug = args.includes('--debug');
+        const isRelease = !isDebug;
+        const extraBuildArgs = args.slice(1).filter(a => a !== 'aab' && a !== 'bundle' && a !== '--debug' && a !== '--release');
+        await buildAndroid(isRelease, extraBuildArgs, true);
+      }
+      break;
+
     case 'build:android':
     case 'build':
       {
-        const isRelease = args.includes('--release');
-        const extraBuildArgs = args.slice(1).filter(a => a !== 'android' && a !== '--release');
-        await buildAndroid(isRelease, extraBuildArgs);
+        const isAab = args.includes('--aab') || args.includes('-b') || subCmd === 'aab' || subCmd === 'bundle';
+        const isDebug = args.includes('--debug');
+        const isRelease = isAab ? !isDebug : args.includes('--release');
+        const extraBuildArgs = args.slice(1).filter(a => a !== 'android' && a !== 'aab' && a !== 'bundle' && a !== '--release' && a !== '--debug' && a !== '--aab');
+        await buildAndroid(isRelease, extraBuildArgs, isAab);
       }
       break;
 
