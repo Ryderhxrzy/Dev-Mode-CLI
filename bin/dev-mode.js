@@ -139,8 +139,12 @@ async function handleWifiOn(targetDevice) {
     console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
     console.log(`\n  ${colors.bold(colors.yellow('🎉 You can now safely unplug your USB cable!'))}\n`);
   } else {
-    console.log(`  ${symbols.warn} adb connect output: ${connectResult.output}`);
-    console.log(`  ${colors.yellow('Please ensure the PC and phone are on the same Wi-Fi network and accept pairing prompt if shown.')}\n`);
+    console.log(`\n  ${symbols.warn} ${colors.yellow('Connection failed or timed out:')} ${colors.dim(connectResult.output)}`);
+    console.log(`\n  ${colors.bold('Troubleshooting tips:')}`);
+    console.log(`  1. Ensure PC and Phone are on the ${colors.bold('same Wi-Fi band')} (e.g. both on 2.4GHz or both on 5GHz).`);
+    console.log(`  2. Some routers (PLDT/Converge/Globe) have ${colors.bold('AP Isolation / Client Isolation')} enabled.`);
+    console.log(`     Try turning off AP Isolation in your router, or connect your phone to your PC's Mobile Hotspot.`);
+    console.log(`  3. On Android 11+, make sure you allow the "Always allow on this network" pairing prompt if shown.\n`);
   }
 }
 
