@@ -30,7 +30,8 @@ const args = process.argv.slice(2);
 function showHelp() {
   banner();
   console.log(`  ${colors.bold('USAGE:')}
-    ${colors.cyan('npx dev-mode')} ${colors.yellow('<command>')} [options]
+    ${colors.cyan('devmode')} ${colors.yellow('<command>')} [options]
+    ${colors.dim('or via npx:')} ${colors.cyan('npx devmode')} ${colors.yellow('<command>')} [options]
 
   ${colors.bold('CORE COMMANDS:')}
     ${colors.yellow('on')}                  Turn ON Developer Options (displays green ASCII icon)
@@ -54,11 +55,11 @@ function showHelp() {
     ${colors.yellow('speed <0.5|1.0|0.0>')}  Set UI animation speed scale (Speed Booster)
 
   ${colors.bold('EXAMPLES:')}
-    ${colors.gray('$')} dev-mode on
-    ${colors.gray('$')} dev-mode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
-    ${colors.gray('$')} dev-mode grant           ${colors.dim('# Grants permissions to Dev Mode mobile app')}
-    ${colors.gray('$')} dev-mode speed 0.5       ${colors.dim('# Speeds up device animations by 2x')}
-    ${colors.gray('$')} dev-mode status
+    ${colors.gray('$')} devmode on
+    ${colors.gray('$')} devmode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
+    ${colors.gray('$')} devmode grant           ${colors.dim('# Grants permissions to Dev Mode mobile app')}
+    ${colors.gray('$')} devmode speed 0.5       ${colors.dim('# Speeds up device animations by 2x')}
+    ${colors.gray('$')} devmode status
 `);
 }
 
@@ -99,7 +100,7 @@ async function handleNoDeviceGuide(device = null) {
     console.log(`  1. Download the APK: ${colors.cyan('https://github.com/Ryderhxrzy/Dev-Mode-Mobile/releases')}`);
     console.log(`  2. Install the APK on your phone.`);
     console.log(`  3. Connect your phone via USB cable and run:`);
-    console.log(`     ${colors.bold(colors.yellow('npx dev-mode grant'))} ${colors.dim('# Automatically grants WRITE_SECURE_SETTINGS')}`);
+    console.log(`     ${colors.bold(colors.yellow('npx devmode grant'))} ${colors.dim('# Automatically grants WRITE_SECURE_SETTINGS')}`);
     console.log(`     ${colors.dim('Or manually: adb shell pm grant com.devmode.app android.permission.WRITE_SECURE_SETTINGS')}`);
     console.log(`  4. Home screen widgets (3x1 & 1x1) and status bar toggles will now work!\n`);
   } else if (choice === '3') {
@@ -112,7 +113,7 @@ async function handleNoDeviceGuide(device = null) {
     console.log(`  3. Go to ${colors.bold('Developer Options')} and turn ON ${colors.bold('USB Debugging')}.`);
     console.log(`  4. Connect your phone to this PC via USB cable.`);
     console.log(`  5. On your phone screen, check ${colors.green('"Always allow from this computer"')} and tap ${colors.green('Allow')}.`);
-    console.log(`\n  ${colors.bold(colors.yellow('🎉 Once connected, run "dev-mode on" or "dev-mode wifi on" anytime!'))}\n`);
+    console.log(`\n  ${colors.bold(colors.yellow('🎉 Once connected, run "devmode on" or "devmode wifi on" anytime!'))}\n`);
   }
 }
 
@@ -121,9 +122,63 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
 
   let activeDevice = targetDevice;
 
-  // 1. If no device connected via USB or ADB yet, try discovering via mDNS or cached device
+  // 1. If no device connected via USB or ADB yet, check mobile app bridge or local Wi-Fi
   if (!activeDevice) {
-    console.log(`  ${symbols.info} No active USB or ADB device detected. Checking local Wi-Fi for devices...`);
+    console.log(`  ${symbols.info} No active USB or ADB device detected. Checking local Wi-Fi for Dev Mode app...`);
+
+    // A. Direct communication with Dev Mode Mobile App over local Wi-Fi Bridge
+    const bridge = await tryBridgeFallback();
+    if (bridge) {
+      console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App'))} at ${colors.cyan(bridge.ip)} (Wi-Fi Bridge)`);
+      console.log(`  ${symbols.arrow} Enabling Wireless Debugging via Mobile App...`);
+
+      const res = await callBridge(bridge.ip, 'wifi/on', bridge.port, 6000);
+      if (res.success && res.data) {
+        console.log(`  ${symbols.check} Wireless Debugging: ${colors.bold(colors.green('ENABLED'))}`);
+        const resolvedIp = res.data.ip || bridge.ip;
+        let resolvedPort = specifiedPort ? parseInt(specifiedPort, 10) : res.data.port;
+
+        // If dynamic port was still initializing, give it a moment to resolve
+        if (!resolvedPort) {
+          console.log(`  ${symbols.arrow} Resolving dynamic Wireless ADB port...`);
+          for (let attempt = 0; attempt < 5; attempt++) {
+            await new Promise(r => setTimeout(r, 600));
+            const mdns = discoverMdnsServices();
+            if (mdns.length > 0 && mdns[0].port) {
+              resolvedPort = mdns[0].port;
+              break;
+            }
+          }
+        }
+
+        if (resolvedPort) {
+          console.log(`  ${symbols.check} Dynamic Port: ${colors.bold(colors.cyan(String(resolvedPort)))}`);
+          console.log(`  ${symbols.arrow} Connecting without cable: ${colors.bold(`adb connect ${resolvedIp}:${resolvedPort}`)}...`);
+          const connectResult = connectAdbWifi(resolvedIp, resolvedPort);
+          if (connectResult.success) {
+            saveConfig({ lastIp: resolvedIp, lastPort: resolvedPort });
+            console.log(`\n  ${colors.bold(colors.green('╔════════════════════════════════════════════════════════╗'))}`);
+            console.log(`  ${colors.bold(colors.green('║  ✔ WIRELESS ADB CONNECTED (WITHOUT CABLE)!             ║'))}`);
+            console.log(`  ${colors.bold(colors.green('╚════════════════════════════════════════════════════════╝'))}`);
+            console.log(`  ${symbols.bullet} Endpoint:  ${colors.bold(colors.cyan(`${resolvedIp}:${resolvedPort}`))}`);
+            console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
+            console.log(`\n  ${colors.bold(colors.yellow('🎉 Connected completely wireless over local Wi-Fi!'))}\n`);
+            return;
+          } else {
+            console.log(`\n  ${symbols.warn} ${colors.yellow('Connection attempt returned:')} ${colors.dim(connectResult.output)}`);
+            console.log(`  ${colors.yellow('Tip:')} If this is your first time, ensure your PC is paired in phone's Wireless Debugging.\n`);
+            return;
+          }
+        } else {
+          console.log(`  ${symbols.warn} ${colors.yellow('Wireless Debugging enabled, but dynamic port could not be determined automatically.')}`);
+          console.log(`  ${colors.dim('Check Settings > Wireless Debugging on your phone for the 5-digit port.')}`);
+          console.log(`  ${colors.dim('Connect with: devmode wifi on <port>')}\n`);
+          return;
+        }
+      }
+    }
+
+    // B. Check mDNS
     const mdnsList = discoverMdnsServices();
     if (mdnsList.length > 0) {
       const found = mdnsList[0];
@@ -138,7 +193,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
       }
     }
 
-    // Try last known cached device
+    // C. Try last known cached device
     const last = getLastDevice();
     if (last.lastIp && last.lastPort) {
       console.log(`  ${symbols.info} Attempting connection to last known device: ${colors.cyan(last.lastIp + ':' + last.lastPort)}...`);
@@ -151,7 +206,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
     }
 
     console.log(`\n  ${symbols.cross} ${colors.bold(colors.red('No device found.'))}`);
-    console.log(`  ${colors.yellow('Tip:')} Plug in your phone via USB once, or enable Wireless Debugging in Dev Mode app.\n`);
+    console.log(`  ${colors.yellow('Tip:')} Plug in your phone via USB once, or enable Dev Mode app on Wi-Fi.\n`);
     return;
   }
 
@@ -195,7 +250,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
   if (!port) {
     console.log(`  ${symbols.warn} ${colors.yellow('Wireless port is still binding or unavailable.')}`);
     console.log(`  ${colors.dim('Check Developer Options > Wireless Debugging on your phone for the 5-digit port.')}`);
-    console.log(`  ${colors.dim('You can connect directly with: dev-mode wifi on <port>')}\n`);
+    console.log(`  ${colors.dim('You can connect directly with: devmode wifi on <port>')}\n`);
     return;
   }
 
@@ -219,7 +274,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
     console.log(`  2. Some routers (PLDT/Converge/Globe) have ${colors.bold('AP Isolation / Client Isolation')} enabled.`);
     console.log(`     Try turning off AP Isolation in your router, or connect your phone to your PC's Mobile Hotspot.`);
     console.log(`  3. On Android 11+, check the 5-digit port shown in Settings > Wireless Debugging.`);
-    console.log(`     Run: ${colors.cyan(`dev-mode wifi on <port>`)} (e.g. ${colors.cyan(`dev-mode wifi on 40431`)}).`);
+    console.log(`     Run: ${colors.cyan(`devmode wifi on <port>`)} (e.g. ${colors.cyan(`devmode wifi on 40431`)}).`);
     console.log(`  4. Make sure you allow the "Always allow on this network" pairing prompt if shown.\n`);
   }
 }
@@ -232,6 +287,12 @@ async function handleWifiOff(targetDevice) {
   if (targetDevice) {
     console.log(`  ${symbols.arrow} Disabling Wireless Debugging on device...`);
     disableWirelessDebugging(targetDevice.serial);
+  } else {
+    const bridge = await tryBridgeFallback();
+    if (bridge) {
+      console.log(`  ${symbols.arrow} Disabling Wireless Debugging via Mobile App...`);
+      await callBridge(bridge.ip, 'wifi/off');
+    }
   }
 
   console.log(`  ${symbols.check} ${colors.green('Wireless ADB has been disconnected and disabled.')}\n`);
@@ -258,7 +319,7 @@ async function handleWifiConnect(targetDevice, specifiedTarget) {
 
   if (!target) {
     console.log(`  ${symbols.cross} ${colors.red('Please specify the IP and Port to connect:')}`);
-    console.log(`  ${colors.dim('Usage: npx dev-mode wifi connect 192.168.1.15:39821')}\n`);
+    console.log(`  ${colors.dim('Usage: devmode wifi connect 192.168.1.15:39821')}\n`);
     return;
   }
 
@@ -404,7 +465,7 @@ async function handleUsb(targetDevice, subCommand) {
     disableUsbDebugging(targetDevice.serial);
     console.log(`  ${symbols.check} ${colors.bold(colors.red('USB Debugging: DISABLED'))}\n`);
   } else {
-    console.log(`  ${symbols.warn} Usage: npx dev-mode usb <on|off>\n`);
+    console.log(`  ${symbols.warn} Usage: devmode usb <on|off>\n`);
   }
 }
 

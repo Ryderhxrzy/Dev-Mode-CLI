@@ -73,17 +73,17 @@ No installation required! Run instantly using `npx`:
 
 ```bash
 # Enable Developer Options only
-npx dev-mode on
+npx devmode on
 
 # Enable USB Debugging specifically
-npx dev-mode usb on
+npx devmode usb on
 ```
 
-Or install globally to use bare `dev-mode` anywhere:
+Or install globally to use bare `devmode` anywhere:
 
 ```bash
 npm install -g dev-mode-cli
-dev-mode status
+devmode status
 ```
 
 ---
@@ -107,14 +107,14 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 4. **Run CLI Commands Directly:**
    ```bash
    # Toggle Developer Options on/off
-   npx dev-mode on
-   npx dev-mode off
+   devmode on
+   devmode off
 
    # Enable Wireless ADB & auto-connect over Wi-Fi without typing IPs/ports
-   npx dev-mode wifi on
+   devmode wifi on
 
    # Speed up UI animations to 0.5x for ultra-fast testing
-   npx dev-mode speed 0.5
+   devmode speed 0.5
    ```
 
 ---
@@ -131,9 +131,9 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 4. **Grant Secure Settings Permission with One Command:**
    - Run the dedicated grant command from your terminal:
      ```bash
-     npx dev-mode grant
+     devmode grant
      ```
-     *(Or if installed globally: `dev-mode grant`)*
+     *(Or via npx: `npx devmode grant`)*
 
      > *Under the hood, this executes:*
      > ```bash
@@ -149,15 +149,15 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 
 | Feature | Command | Description | Zero Root |
 | :--- | :--- | :--- | :---: |
-| ⚡ **1-Tap Developer Mode** | `dev-mode on` / `off` | Toggles `development_settings_enabled` on or off with instant app synchronization | `YES` |
-| 🔑 **One-Command App Grant** | `dev-mode grant` | Automatically grants `WRITE_SECURE_SETTINGS` permission to Dev Mode Mobile App | `YES` |
-| 🔌 **Auto Wireless ADB Connect** | `dev-mode wifi on` | Reads local Wi-Fi IP, dynamically resolves pairing port, and runs `adb connect <ip>:<port>` automatically | `YES` |
-| 📡 **mDNS & Reconnect Discovery** | `dev-mode wifi connect` | Auto-discovers Android devices over LAN using mDNS (`_adb-tls-connect._tcp`) without USB | `YES` |
-| 🛠️ **USB Debugging Control** | `dev-mode usb on` / `off` | Selectively turns USB debugging on or off | `YES` |
-| 🏎️ **Speed Booster (Animations)** | `dev-mode speed 0.5` | Sets window, transition, and animator scales to 0.5x for ultra-fast testing | `YES` |
-| 📊 **Device Diagnostics Dashboard** | `dev-mode status` | Displays live device model, connection type, IP address, active port, and status flags | `YES` |
-| 🎨 **Official Green ASCII Icon** | `dev-mode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
-| 🌉 **Rootless Wi-Fi Bridge** | `dev-mode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
+| ⚡ **1-Tap Developer Mode** | `devmode on` / `off` | Toggles `development_settings_enabled` on or off with instant app synchronization | `YES` |
+| 🔑 **One-Command App Grant** | `devmode grant` | Automatically grants `WRITE_SECURE_SETTINGS` permission to Dev Mode Mobile App | `YES` |
+| 🔌 **Auto Wireless ADB Connect** | `devmode wifi on` | Reads local Wi-Fi IP, dynamically resolves pairing port, and runs `adb connect <ip>:<port>` automatically | `YES` |
+| 📡 **mDNS & Reconnect Discovery** | `devmode wifi connect` | Auto-discovers Android devices over LAN using mDNS (`_adb-tls-connect._tcp`) without USB | `YES` |
+| 🛠️ **USB Debugging Control** | `devmode usb on` / `off` | Selectively turns USB debugging on or off | `YES` |
+| 🏎️ **Speed Booster (Animations)** | `devmode speed 0.5` | Sets window, transition, and animator scales to 0.5x for ultra-fast testing | `YES` |
+| 📊 **Device Diagnostics Dashboard** | `devmode status` | Displays live device model, connection type, IP address, active port, and status flags | `YES` |
+| 🎨 **Official Green ASCII Icon** | `devmode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
+| 🌉 **Rootless Wi-Fi Bridge** | `devmode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
 | 🪶 **Zero Dependencies** | Built-in Node.js | Pure lightweight Node.js standard library with millisecond execution speed | `YES` |
 
 ---
@@ -166,27 +166,27 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 
 ```bash
 # Core Toggles & Display
-npx dev-mode on                     # Turn ON Developer Options (displays green ASCII icon)
-npx dev-mode off                    # Turn OFF Developer Options only
-npx dev-mode icon                   # Display official Dev Mode green ASCII art icon
-npx dev-mode status                 # Inspect live device details, IP, port, and status flags
+devmode on                     # Turn ON Developer Options (displays green ASCII icon)
+devmode off                    # Turn OFF Developer Options only
+devmode icon                   # Display official Dev Mode green ASCII art icon
+devmode status                 # Inspect live device details, IP, port, and status flags
 
 # Mobile App Bridge & Permissions
-npx dev-mode bridge                 # Inspect direct Wi-Fi bridge to Mobile App (ADB bypassed)
-npx dev-mode grant                  # Grant WRITE_SECURE_SETTINGS permission to Dev Mode Mobile App
+devmode bridge                 # Inspect direct Wi-Fi bridge to Mobile App (ADB bypassed)
+devmode grant                  # Grant WRITE_SECURE_SETTINGS permission to Dev Mode Mobile App
 
 # Wireless ADB (Auto-Connect)
-npx dev-mode wifi on                # Enable Wireless Debugging and auto-connect
-npx dev-mode wifi off               # Disconnect and disable Wireless Debugging
-npx dev-mode wifi connect           # Reconnect to discovered or cached wireless device
-npx dev-mode wifi connect <ip:port> # Connect to a specific endpoint
+devmode wifi on                # Enable Wireless Debugging and auto-connect
+devmode wifi off               # Disconnect and disable Wireless Debugging
+devmode wifi connect           # Reconnect to discovered or cached wireless device
+devmode wifi connect <ip:port> # Connect to a specific endpoint
 
 # Hardware & System Tools
-npx dev-mode usb on                 # Enable USB Debugging specifically
-npx dev-mode usb off                # Disable USB Debugging specifically
-npx dev-mode speed 0.5              # 2x Animation Speed Booster
-npx dev-mode speed 1.0              # Reset animations to standard speed
-npx dev-mode help                   # Show interactive help manual
+devmode usb on                 # Enable USB Debugging specifically
+devmode usb off                # Disable USB Debugging specifically
+devmode speed 0.5              # 2x Animation Speed Booster
+devmode speed 1.0              # Reset animations to standard speed
+devmode help                   # Show interactive help manual
 ```
 
 ---
@@ -196,7 +196,7 @@ npx dev-mode help                   # Show interactive help manual
 ```
 ┌─────────────────────────────────┐
 │  Developer runs:                │
-│  $ npx dev-mode wifi on         │
+│  $ devmode wifi on              │
 └────────────────┬────────────────┘
                  │
                  ▼
@@ -227,7 +227,7 @@ npx dev-mode help                   # Show interactive help manual
    - Download: [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 2. **Device Permission (For Mobile App):** If using alongside the [Dev Mode Mobile App](https://github.com/Ryderhxrzy/Dev-Mode-Mobile), grant secure settings permission once directly via the CLI:
    ```bash
-   npx dev-mode grant
+   devmode grant
    ```
    *(Or manual ADB command: `adb shell pm grant com.devmode.app android.permission.WRITE_SECURE_SETTINGS`)*
 
@@ -235,7 +235,7 @@ npx dev-mode help                   # Show interactive help manual
 
 ## 💡 Troubleshooting Wi-Fi Connection
 
-If `dev-mode wifi on` reports a connection timeout:
+If `devmode wifi on` reports a connection timeout:
 1. **Same Wi-Fi Band:** Ensure your PC and phone are connected to the exact same Wi-Fi band (e.g. both on 2.4GHz or both on 5GHz).
 2. **AP Isolation:** Some routers (PLDT, Converge, Globe, etc.) have **AP Isolation / Client Isolation** enabled by default, blocking direct device-to-device communication. Turn off AP Isolation in your router admin panel, or connect your phone to your PC's **Mobile Hotspot**.
 
