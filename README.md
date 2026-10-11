@@ -11,7 +11,7 @@
     <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square" alt="License" /></a>
   </p>
   <p>
-    <a href="https://github.com/Ryderhxrzy/Developer-Option-Toggle"><img src="https://img.shields.io/badge/Release-v1.0.0-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
+    <a href="https://github.com/Ryderhxrzy/Dev-Mode-Mobile"><img src="https://img.shields.io/badge/Release-v1.0.0-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
     <img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-22C55E?style=flat-square" alt="Dependencies" />
     <img src="https://img.shields.io/badge/Wireless%20ADB-Auto--Connect-7F52FF?style=flat-square" alt="Wireless ADB" />
     <img src="https://img.shields.io/badge/Telemetry-Zero-10B981?style=flat-square" alt="Telemetry" />
@@ -19,7 +19,7 @@
   </p>
 
   <p>
-    The official companion CLI for <strong><a href="https://github.com/Ryderhxrzy/Developer-Option-Toggle">Dev Mode</a></strong>. Instantly toggle Android Developer Options, USB Debugging, and Wireless ADB directly from your PC terminal—eliminating the tedious chore of checking randomized ports and manually typing <code>adb connect</code>.
+    The official companion CLI for <strong><a href="https://github.com/Ryderhxrzy/Dev-Mode-Mobile">Dev Mode (Mobile)</a></strong>. Instantly toggle Android Developer Options, USB Debugging, and Wireless ADB directly from your PC terminal—eliminating the tedious chore of checking randomized ports and manually typing <code>adb connect</code>.
   </p>
 
 </div>
@@ -30,12 +30,21 @@
 
 No installation required! Run instantly using `npx`:
 
+```text
+   ___  ______   __  __  __  ____  ___  ____
+  / _ \/ __/\ \ / / /  |/  / __ \/ _ \/ __/
+ / // / _/   \ V / / /|_/ / /_/ / // / _/  
+/____/___/    \_/ /_/  /_/\____/____/___/  
+  ⚡ Android Quick-Toggle & Wireless ADB CLI  v1.0.0
+  ───────────────────────────────────────────────────
+```
+
 ```bash
-# Enable Developer Options & USB Debugging
+# Enable Developer Options only
 npx dev-mode on
 
-# Enable Wireless ADB and AUTO-CONNECT in one step
-npx dev-mode wifi on
+# Enable USB Debugging specifically
+npx dev-mode usb on
 ```
 
 Or install globally to use bare `dev-mode` anywhere:
@@ -51,7 +60,7 @@ dev-mode status
 
 | Feature | Command | Description | Zero Root |
 | :--- | :--- | :--- | :---: |
-| ⚡ **1-Tap Developer Mode** | `dev-mode on` / `off` | Toggles `development_settings_enabled` and `adb_enabled` with instant app synchronization | `YES` |
+| ⚡ **1-Tap Developer Mode** | `dev-mode on` / `off` | Toggles `development_settings_enabled` on or off with instant app synchronization | `YES` |
 | 🔌 **Auto Wireless ADB Connect** | `dev-mode wifi on` | Reads local Wi-Fi IP, dynamically resolves pairing port, and runs `adb connect <ip>:<port>` automatically | `YES` |
 | 📡 **mDNS & Reconnect Discovery** | `dev-mode wifi connect` | Auto-discovers Android devices over LAN using mDNS (`_adb-tls-connect._tcp`) without USB | `YES` |
 | 🛠️ **USB Debugging Control** | `dev-mode usb on` / `off` | Selectively turns USB debugging on or off | `YES` |
@@ -65,8 +74,8 @@ dev-mode status
 
 ```bash
 # Core Toggles
-npx dev-mode on                   # Turn ON Developer Options & USB Debugging
-npx dev-mode off                  # Turn OFF Developer Options, USB & Wireless ADB
+npx dev-mode on                   # Turn ON Developer Options only
+npx dev-mode off                  # Turn OFF Developer Options only
 npx dev-mode status               # Inspect live device details, IP, port, and status flags
 
 # Wireless ADB (Auto-Connect)
@@ -119,7 +128,7 @@ npx dev-mode help                 # Show interactive help manual
 
 1. **Android Platform Tools (ADB):** Ensure `adb` is installed and added to your system `PATH`.
    - Download: [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)
-2. **Device Permission:** If using alongside the [Dev Mode Mobile App](https://github.com/Ryderhxrzy/Developer-Option-Toggle), ensure secure settings permission is granted once:
+2. **Device Permission:** If using alongside the [Dev Mode Mobile App](https://github.com/Ryderhxrzy/Dev-Mode-Mobile), ensure secure settings permission is granted once:
    ```bash
    adb shell pm grant com.devmode.app android.permission.WRITE_SECURE_SETTINGS
    ```
@@ -138,5 +147,5 @@ If `dev-mode wifi on` reports a connection timeout:
 
 Distributed under the **MIT License**. Created by [Ryderhxrzy](https://github.com/Ryderhxrzy).
 
-Companion repository: [Dev Mode Android App](https://github.com/Ryderhxrzy/Developer-Option-Toggle)
+Companion repository: [Dev Mode Mobile App](https://github.com/Ryderhxrzy/Dev-Mode-Mobile)
 
