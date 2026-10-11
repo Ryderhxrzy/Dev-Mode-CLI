@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // bin/dev-mode.js - Dev Mode CLI entry point
-const { colors, symbols, banner, printStatusItem, printKeyValue } = require('../lib/ui');
+const { colors, symbols, banner, printDevModeIcon, printStatusItem, printKeyValue, printQuickActions } = require('../lib/ui');
 const {
   checkAdbInstalled,
   getConnectedDevices,
@@ -19,6 +19,7 @@ const {
   discoverMdnsServices,
   getDeviceStatus,
   setAnimationScales,
+  grantAppPermission,
   execAdb
 } = require('../lib/adb');
 const { saveConfig, getLastDevice } = require('../lib/config');
@@ -31,9 +32,13 @@ function showHelp() {
     ${colors.cyan('npx dev-mode')} ${colors.yellow('<command>')} [options]
 
   ${colors.bold('CORE COMMANDS:')}
-    ${colors.yellow('on')}                  Turn ON Developer Options & USB Debugging
-    ${colors.yellow('off')}                 Turn OFF Developer Options & All Debugging
+    ${colors.yellow('on')}                  Turn ON Developer Options (displays green ASCII icon)
+    ${colors.yellow('off')}                 Turn OFF Developer Options only
+    ${colors.yellow('icon')}                Display official Dev Mode green ASCII icon
     ${colors.yellow('status')}              Show current device status and IP/Port info
+
+  ${colors.bold('MOBILE APP PERMISSION:')}
+    ${colors.yellow('grant')}               Grant WRITE_SECURE_SETTINGS to Dev Mode mobile app
 
   ${colors.bold('WIRELESS ADB (Auto-Connect):')}
     ${colors.yellow('wifi on')}             Enable Wireless ADB and ${colors.bold(colors.green('auto-connect'))} over Wi-Fi
@@ -47,11 +52,66 @@ function showHelp() {
     ${colors.yellow('speed <0.5|1.0|0.0>')}  Set UI animation speed scale (Speed Booster)
 
   ${colors.bold('EXAMPLES:')}
-    ${colors.gray('$')} npx dev-mode on
-    ${colors.gray('$')} npx dev-mode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
-    ${colors.gray('$')} npx dev-mode speed 0.5       ${colors.dim('# Speeds up device animations by 2x')}
-    ${colors.gray('$')} npx dev-mode status
+    ${colors.gray('$')} dev-mode on
+    ${colors.gray('$')} dev-mode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
+    ${colors.gray('$')} dev-mode grant           ${colors.dim('# Grants permissions to Dev Mode mobile app')}
+    ${colors.gray('$')} dev-mode speed 0.5       ${colors.dim('# Speeds up device animations by 2x')}
+    ${colors.gray('$')} dev-mode status
 `);
+}
+
+function promptUser(questionText) {
+  return new Promise((resolve) => {
+    if (!process.stdin.isTTY) {
+      return resolve('1');
+    }
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    rl.question(questionText, (answer) => {
+      rl.close();
+      resolve((answer || '').trim());
+    });
+  });
+}
+
+async function handleNoDeviceGuide(device = null) {
+  if (device && device.isUnauthorized) {
+    console.log(`  ${symbols.warn} ${colors.bold(colors.yellow(`Device detected (${device.model || device.serial}), but it is UNAUTHORIZED.`))}`);
+    console.log(`  ${colors.bold('Action required:')} Unlock your phone screen and tap ${colors.green('"Always allow from this computer"')} on the prompt.\n`);
+    return;
+  }
+
+  console.log(`  ${symbols.cross} ${colors.bold(colors.red('No trusted Android device connected.'))}\n`);
+  console.log(`  ${colors.bold('What would you like to do?')}`);
+  console.log(`  ${colors.cyan('[1]')} Setup WITHOUT App ${colors.dim('(Enable USB Debugging on your phone for pure CLI use)')}`);
+  console.log(`  ${colors.cyan('[2]')} Setup WITH Dev Mode App ${colors.dim('(For Home Screen Widgets & Notification Shade)')}`);
+  console.log(`  ${colors.cyan('[3]')} Exit\n`);
+
+  const choice = await promptUser('  Select an option [1-3] (default: 1): ');
+
+  if (choice === '2') {
+    console.log(`\n  ${colors.bold(colors.green('📱 Setup WITH Dev Mode Mobile App:'))}`);
+    console.log(`  1. Download the APK: ${colors.cyan('https://github.com/Ryderhxrzy/Dev-Mode-Mobile/releases')}`);
+    console.log(`  2. Install the APK on your phone.`);
+    console.log(`  3. Connect your phone via USB cable and run:`);
+    console.log(`     ${colors.bold(colors.yellow('npx dev-mode grant'))} ${colors.dim('# Automatically grants WRITE_SECURE_SETTINGS')}`);
+    console.log(`     ${colors.dim('Or manually: adb shell pm grant com.devmode.app android.permission.WRITE_SECURE_SETTINGS')}`);
+    console.log(`  4. Home screen widgets (3x1 & 1x1) and status bar toggles will now work!\n`);
+  } else if (choice === '3') {
+    console.log('');
+  } else {
+    // Option 1 (default)
+    console.log(`\n  ${colors.bold(colors.green('📋 Setup WITHOUT Mobile App (Pure CLI Utility):'))}`);
+    console.log(`  1. Open ${colors.bold('Settings')} on your Android phone.`);
+    console.log(`  2. Go to ${colors.bold('About Phone')} and tap ${colors.bold('Build Number')} 7 times.`);
+    console.log(`  3. Go to ${colors.bold('Developer Options')} and turn ON ${colors.bold('USB Debugging')}.`);
+    console.log(`  4. Connect your phone to this PC via USB cable.`);
+    console.log(`  5. On your phone screen, check ${colors.green('"Always allow from this computer"')} and tap ${colors.green('Allow')}.`);
+    console.log(`\n  ${colors.bold(colors.yellow('🎉 Once connected, run "dev-mode on" or "dev-mode wifi on" anytime!'))}\n`);
+  }
 }
 
 async function handleWifiOn(targetDevice) {
@@ -199,9 +259,8 @@ async function handleWifiConnect(targetDevice, specifiedTarget) {
 
 async function handleStatus(targetDevice) {
   banner();
-  if (!targetDevice) {
-    console.log(`  ${symbols.cross} ${colors.red('No active Android device found.')}`);
-    console.log(`  ${colors.dim('Connect a device via USB or Wireless ADB to inspect status.')}\n`);
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
     return;
   }
 
@@ -230,9 +289,9 @@ async function handleStatus(targetDevice) {
 
 async function handleDevOn(targetDevice) {
   banner();
-  if (!targetDevice) {
-    console.log(`  ${symbols.cross} ${colors.red('No Android device connected.')}`);
-    console.log(`  ${colors.yellow('Tip:')} Connect your phone via USB cable and authorize USB Debugging.\n`);
+  printDevModeIcon();
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
     return;
   }
 
@@ -242,12 +301,13 @@ async function handleDevOn(targetDevice) {
 
   console.log(`  ${symbols.check} ${colors.bold(colors.green('Developer Options: ENABLED'))}`);
   console.log(`  ${colors.dim('Dev Mode widgets and status bar notification synchronized.')}\n`);
+  printQuickActions();
 }
 
 async function handleDevOff(targetDevice) {
   banner();
-  if (!targetDevice) {
-    console.log(`  ${symbols.cross} ${colors.red('No Android device connected.')}\n`);
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
     return;
   }
 
@@ -256,12 +316,13 @@ async function handleDevOff(targetDevice) {
   disableDeveloperOptions(targetDevice.serial);
 
   console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}\n`);
+  printQuickActions();
 }
 
 async function handleUsb(targetDevice, subCommand) {
   banner();
-  if (!targetDevice) {
-    console.log(`  ${symbols.cross} ${colors.red('No Android device connected.')}\n`);
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
     return;
   }
 
@@ -278,8 +339,8 @@ async function handleUsb(targetDevice, subCommand) {
 
 async function handleSpeed(targetDevice, scaleArg) {
   banner();
-  if (!targetDevice) {
-    console.log(`  ${symbols.cross} ${colors.red('No Android device connected.')}\n`);
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
     return;
   }
 
@@ -292,6 +353,27 @@ async function handleSpeed(targetDevice, scaleArg) {
   console.log(`  ${symbols.arrow} Setting system animation scale to ${colors.cyan(scale + 'x')}...`);
   setAnimationScales(scale, targetDevice.serial);
   console.log(`  ${symbols.check} ${colors.bold(colors.green(`Animation scales updated to ${scale}x (Speed Booster applied)`))}\n`);
+}
+
+async function handleGrant(targetDevice) {
+  banner();
+  if (!targetDevice || targetDevice.isUnauthorized) {
+    await handleNoDeviceGuide(targetDevice);
+    return;
+  }
+
+  console.log(`  ${symbols.arrow} Target: ${colors.cyan(targetDevice.model || targetDevice.serial)}`);
+  console.log(`  ${symbols.arrow} Granting WRITE_SECURE_SETTINGS to com.devmode.app...`);
+  const success = grantAppPermission(targetDevice.serial);
+
+  if (success) {
+    console.log(`  ${symbols.check} ${colors.bold(colors.green('Permission GRANTED successfully!'))}`);
+    console.log(`  ${colors.dim('Dev Mode mobile app can now toggle Developer Options, USB, and widgets rootless.')}\n`);
+  } else {
+    console.log(`  ${symbols.cross} ${colors.bold(colors.red('Failed to grant permission.'))}`);
+    console.log(`  ${colors.yellow('Make sure the Dev Mode app is installed on the phone first.')}`);
+    console.log(`  Download APK: ${colors.cyan('https://github.com/Ryderhxrzy/Dev-Mode-Mobile/releases')}\n`);
+  }
 }
 
 async function main() {
@@ -316,6 +398,10 @@ async function main() {
 
     case 'off':
       await handleDevOff(targetDevice);
+      break;
+
+    case 'grant':
+      await handleGrant(targetDevice);
       break;
 
     case 'wifi':
@@ -346,6 +432,11 @@ async function main() {
     case 'speed':
     case 'scale':
       await handleSpeed(targetDevice, subCmd);
+      break;
+
+    case 'icon':
+      banner();
+      printDevModeIcon();
       break;
 
     case 'help':
