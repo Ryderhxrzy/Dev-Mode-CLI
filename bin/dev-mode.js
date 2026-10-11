@@ -66,20 +66,22 @@ function showHelp() {
     ${colors.yellow('speed <0.5|1.0|0.0>')}  Set UI animation speed scale (Speed Booster)
 
   ${colors.bold('EXPO & ANDROID DEV SUITE:')}
-    ${colors.yellow('run / start')}           Start Expo development server (npx expo start)
-    ${colors.yellow('debug:android')}         Build & launch debug app on device (npx expo run:android)
-    ${colors.yellow('reload')}                Fast-refresh active app (Metro endpoint & device keyevent)
-    ${colors.yellow('menu')}                  Open React Native / Expo Dev Menu on device screen
-    ${colors.yellow('build:android')}         Build APK with native Gradle (assembleDebug / assembleRelease)
-    ${colors.yellow('install:apk [file]')}    Auto-discover and install latest debug APK to device
-    ${colors.yellow('clean')}                 Clean Gradle and Metro project caches
-    ${colors.yellow('logs')}                  Stream filtered React Native & Expo device logcat
-    ${colors.yellow('reverse [port]')}        Set up ADB reverse port for Metro (default: 8081)
+    ${colors.yellow('run / start [--native]')}  Start Expo server or Native Studio (auto-detects project)
+    ${colors.yellow('studio / native')}        Lightweight Android Studio CLI for Kotlin & live Logcat
+    ${colors.yellow('debug:android')}          Build & launch debug app on device (npx expo run:android)
+    ${colors.yellow('reload')}                 Fast-refresh active app (Metro endpoint & device keyevent)
+    ${colors.yellow('menu')}                   Open React Native / Expo Dev Menu on device screen
+    ${colors.yellow('build:android')}          Build APK with native Gradle (assembleDebug / assembleRelease)
+    ${colors.yellow('install:apk [file]')}     Auto-discover and install latest debug APK to device
+    ${colors.yellow('clean')}                  Clean Gradle and Metro project caches
+    ${colors.yellow('logs')}                   Stream filtered React Native & Expo device logcat
+    ${colors.yellow('reverse [port]')}         Set up ADB reverse port for Metro (default: 8081)
 
   ${colors.bold('EXAMPLES:')}
     ${colors.gray('$')} devmode on
     ${colors.gray('$')} devmode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
     ${colors.gray('$')} devmode run             ${colors.dim('# Starts Expo dev server')}
+    ${colors.gray('$')} devmode run --native    ${colors.dim('# Starts Native Studio (Kotlin/Gradle)')}
     ${colors.gray('$')} devmode debug:android   ${colors.dim('# Builds & launches on connected Android')}
     ${colors.gray('$')} devmode reload          ${colors.dim('# Instant hot-reload active app')}
     ${colors.gray('$')} devmode build:android   ${colors.dim('# Compiles debug APK via Gradle')}
@@ -621,7 +623,22 @@ async function main() {
 
     case 'run':
     case 'start':
-      await runExpoStart(args.slice(1));
+      if (args.includes('--native') || args.includes('-n') || subCmd === 'native') {
+        const { runNativeStudio } = require('../lib/studio');
+        await runNativeStudio();
+      } else {
+        await runExpoStart(args.slice(1));
+      }
+      break;
+
+    case 'start:native':
+    case 'run:native':
+    case 'studio':
+    case 'native':
+      {
+        const { runNativeStudio } = require('../lib/studio');
+        await runNativeStudio();
+      }
       break;
 
     case 'debug:android':

@@ -191,6 +191,8 @@ devmode wifi connect <ip:port> # Connect to a specific endpoint
 
 # Expo & Android Dev Suite
 devmode run                    # Start Expo development server (npx expo start)
+devmode run --native           # Start Dev Mode Native Studio (Kotlin compilation & Logcat)
+devmode studio                 # Launch Native Studio console (single-letter hotkeys)
 devmode debug:android          # Build & launch debug app on device (npx expo run:android)
 devmode reload                 # Fast-refresh active app (Metro & device)
 devmode menu                   # Open React Native Dev Menu on device screen
