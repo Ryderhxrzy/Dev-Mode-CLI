@@ -11,7 +11,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node bin/dev-mode.js",
-    "test": "node bin/dev-mode.js status"
+    "test": "node --check bin/dev-mode.js && node --check lib/adb.js && node --check lib/bridge.js && node --check lib/config.js && node --check lib/dev.js && node --check lib/studio.js && node --check lib/ui.js"
   },
   "keywords": [
     "android",
