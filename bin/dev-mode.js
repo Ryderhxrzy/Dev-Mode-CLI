@@ -184,7 +184,24 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
         if (resolvedPort) {
           console.log(`  ${symbols.check} Dynamic Port: ${colors.bold(colors.cyan(String(resolvedPort)))}`);
           console.log(`  ${symbols.arrow} Connecting without cable: ${colors.bold(`adb connect ${resolvedIp}:${resolvedPort}`)}...`);
-          const connectResult = connectAdbWifi(resolvedIp, resolvedPort);
+          let connectResult = connectAdbWifi(resolvedIp, resolvedPort);
+
+          // If connection was actively refused (10061), adbd may have restarted on a fresh dynamic port
+          if (!connectResult.success && (connectResult.output.includes('10061') || connectResult.output.includes('refused') || connectResult.output.includes('failed to connect'))) {
+            console.log(`  ${symbols.info} Port ${resolvedPort} connection refused. Resolving fresh dynamic port via mDNS...`);
+            for (let attempt = 0; attempt < 3; attempt++) {
+              await new Promise(r => setTimeout(r, 1200));
+              const mdnsList = discoverMdnsServices();
+              const freshPort = mdnsList.length > 0 && mdnsList[0].port ? mdnsList[0].port : null;
+              if (freshPort && freshPort !== resolvedPort) {
+                console.log(`  ${symbols.check} Discovered updated dynamic port: ${colors.bold(colors.cyan(String(freshPort)))}`);
+                resolvedPort = freshPort;
+                connectResult = connectAdbWifi(resolvedIp, resolvedPort);
+                if (connectResult.success) break;
+              }
+            }
+          }
+
           if (connectResult.success) {
             saveConfig({ lastIp: resolvedIp, lastPort: resolvedPort });
             console.log(`\n  ${colors.bold(colors.green('╔════════════════════════════════════════════════════════╗'))}`);
@@ -687,8 +704,11 @@ async function main() {
     case 'install:apk':
     case 'install':
       {
-        const targetApk = subCmd === 'apk' ? extraArg : (subCmd || extraArg);
-        installApk(targetApk);
+        const isRelease = args.includes('--release') || args.includes('-r');
+        const isDebug = args.includes('--debug') || args.includes('-d');
+        const rawTarget = subCmd === 'apk' ? extraArg : (subCmd || extraArg);
+        const targetApk = (rawTarget && !rawTarget.startsWith('-')) ? rawTarget : null;
+        installApk(targetApk, { release: isRelease, debug: isDebug });
       }
       break;
 
