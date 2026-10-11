@@ -237,11 +237,10 @@ async function handleDevOn(targetDevice) {
   }
 
   console.log(`  ${symbols.arrow} Target: ${colors.cyan(targetDevice.model || targetDevice.serial)}`);
-  console.log(`  ${symbols.arrow} Enabling Developer Options & USB Debugging...`);
+  console.log(`  ${symbols.arrow} Enabling Developer Options...`);
   enableDeveloperOptions(targetDevice.serial);
 
   console.log(`  ${symbols.check} ${colors.bold(colors.green('Developer Options: ENABLED'))}`);
-  console.log(`  ${symbols.check} ${colors.bold(colors.green('USB Debugging: ENABLED'))}`);
   console.log(`  ${colors.dim('Dev Mode widgets and status bar notification synchronized.')}\n`);
 }
 
@@ -253,11 +252,10 @@ async function handleDevOff(targetDevice) {
   }
 
   console.log(`  ${symbols.arrow} Target: ${colors.cyan(targetDevice.model || targetDevice.serial)}`);
-  console.log(`  ${symbols.arrow} Disabling Developer Options & ADB Debugging...`);
+  console.log(`  ${symbols.arrow} Disabling Developer Options...`);
   disableDeveloperOptions(targetDevice.serial);
 
-  console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}`);
-  console.log(`  ${symbols.check} ${colors.bold(colors.red('USB & Wireless Debugging: DISABLED'))}\n`);
+  console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}\n`);
 }
 
 async function handleUsb(targetDevice, subCommand) {
