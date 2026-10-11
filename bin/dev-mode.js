@@ -66,7 +66,7 @@ function showHelp() {
     ${colors.yellow('speed <0.5|1.0|0.0>')}  Set UI animation speed scale (Speed Booster)
 
   ${colors.bold('EXPO & ANDROID DEV SUITE:')}
-    ${colors.yellow('run / start [--native]')}  Start Expo server or Native Studio (auto-detects project)
+    ${colors.yellow('start / run [--native]')}  Auto-detects project: starts Expo server or Native Studio
     ${colors.yellow('studio / native')}        Lightweight Android Studio CLI for Kotlin & live Logcat
     ${colors.yellow('debug:android')}          Build & launch debug app on device (npx expo run:android)
     ${colors.yellow('reload')}                 Fast-refresh active app (Metro endpoint & device keyevent)
@@ -80,8 +80,8 @@ function showHelp() {
   ${colors.bold('EXAMPLES:')}
     ${colors.gray('$')} devmode on
     ${colors.gray('$')} devmode wifi on         ${colors.dim('# Auto-resolves IP & Port, then connects!')}
-    ${colors.gray('$')} devmode run             ${colors.dim('# Starts Expo dev server')}
-    ${colors.gray('$')} devmode run --native    ${colors.dim('# Starts Native Studio (Kotlin/Gradle)')}
+    ${colors.gray('$')} devmode start           ${colors.dim('# Auto-detects & starts dev server (Expo or Android)')}
+    ${colors.gray('$')} devmode start --native  ${colors.dim('# Starts Native Studio for Kotlin/Gradle')}
     ${colors.gray('$')} devmode debug:android   ${colors.dim('# Builds & launches on connected Android')}
     ${colors.gray('$')} devmode reload          ${colors.dim('# Instant hot-reload active app')}
     ${colors.gray('$')} devmode build:android   ${colors.dim('# Compiles debug APK via Gradle')}

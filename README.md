@@ -158,7 +158,8 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 📊 **Device Diagnostics Dashboard** | `devmode status` | Displays live device model, connection type, IP address, active port, and status flags | `YES` |
 | 🎨 **Official Green ASCII Icon** | `devmode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
 | 🌉 **Rootless Wi-Fi Bridge** | `devmode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
-| 🚀 **Start Expo Server** | `devmode run` / `start` | Launches the Expo Metro bundler development server | `YES` |
+| 🚀 **Universal App Runner** | `devmode start` / `run` | Auto-detects project: starts Expo server for Expo apps or Native Studio for Kotlin/Android | `YES` |
+| ⚡ **Native Android Studio** | `devmode studio` / `start --native` | Lightweight Android Studio CLI for Kotlin/Java builds & live Logcat | `YES` |
 | 📱 **Launch Debug Build** | `devmode debug:android` | Builds and launches debug app on Android device & auto-grants permissions | `YES` |
 | 🔄 **Instant Fast-Refresh** | `devmode reload` | Sends hot-reload signal to Metro bundler and connected device | `YES` |
 | 📋 **Open Dev Menu** | `devmode menu` | Opens React Native / Expo developer menu directly on device screen | `YES` |
@@ -190,9 +191,10 @@ devmode wifi connect           # Reconnect to discovered or cached wireless devi
 devmode wifi connect <ip:port> # Connect to a specific endpoint
 
 # Expo & Android Dev Suite
-devmode run                    # Start Expo development server (npx expo start)
-devmode run --native           # Start Dev Mode Native Studio (Kotlin compilation & Logcat)
-devmode studio                 # Launch Native Studio console (single-letter hotkeys)
+devmode start                  # Auto-detects project: starts Expo server (or Native Studio for pure Android)
+devmode run                    # Alias for devmode start (works identically)
+devmode start --native         # Launch Native Studio for Kotlin/Gradle development (with live Logcat & hotkeys)
+devmode studio                 # Alias for devmode start --native (lightweight Android Studio replacement)
 devmode debug:android          # Build & launch debug app on device (npx expo run:android)
 devmode reload                 # Fast-refresh active app (Metro & device)
 devmode menu                   # Open React Native Dev Menu on device screen
