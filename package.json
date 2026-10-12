@@ -1,6 +1,6 @@
 {
   "name": "dev-mode-cli",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Official CLI tool for Dev Mode — instantly toggle Android Developer Options, USB & Wireless ADB, and auto-connect over Wi-Fi without manual typing.",
   "main": "bin/dev-mode.js",
   "bin": {

@@ -23,7 +23,7 @@ const {
   execAdb
 } = require('../lib/adb');
 const { saveConfig, getLastDevice } = require('../lib/config');
-const { discoverBridge, callBridge } = require('../lib/bridge');
+const { discoverBridge, callBridge, connectViaBridge } = require('../lib/bridge');
 const {
   runExpoStart,
   runExpoAndroid,
@@ -42,9 +42,10 @@ function showHelp() {
   banner();
   console.log(`  ${colors.bold('USAGE:')}
     ${colors.cyan('devmode')} ${colors.yellow('<command>')} [options]
-    ${colors.dim('or via npx:')} ${colors.cyan('npx devmode')} ${colors.yellow('<command>')} [options]
+    ${colors.dim('or via npx:')} ${colors.cyan('npx dev-mode-cli')} ${colors.yellow('<command>')} [options]
 
   ${colors.bold('CORE COMMANDS:')}
+    ${colors.yellow('auto')}                Interactive menu: press one key to run any command below
     ${colors.yellow('on')}                  Turn ON Developer Options (displays green ASCII icon)
     ${colors.yellow('off')}                 Turn OFF Developer Options only
     ${colors.yellow('icon')}                Display official Dev Mode green ASCII icon
@@ -73,7 +74,7 @@ function showHelp() {
     ${colors.yellow('menu')}                   Open React Native / Expo Dev Menu on device screen
     ${colors.yellow('build:aab')}              Build production AAB for Google Play (bundleRelease)
     ${colors.yellow('build:android')}          Build APK with native Gradle (assembleDebug / assembleRelease)
-    ${colors.yellow('install:apk [file]')}     Auto-discover and install latest debug APK to device
+    ${colors.yellow('install:apk [file]')}     Install latest APK (--release | --debug to pick variant)
     ${colors.yellow('clean')}                  Clean Gradle and Metro project caches
     ${colors.yellow('logs')}                   Stream filtered React Native & Expo device logcat
     ${colors.yellow('reverse [port]')}         Set up ADB reverse port for Metro (default: 8081)
@@ -130,7 +131,7 @@ async function handleNoDeviceGuide(device = null) {
     console.log(`  1. Download the APK: ${colors.cyan('https://github.com/Ryderhxrzy/Dev-Mode-Mobile/releases')}`);
     console.log(`  2. Install the APK on your phone.`);
     console.log(`  3. Connect your phone via USB cable and run:`);
-    console.log(`     ${colors.bold(colors.yellow('npx devmode grant'))} ${colors.dim('# Automatically grants WRITE_SECURE_SETTINGS')}`);
+    console.log(`     ${colors.bold(colors.yellow('npx dev-mode-cli grant'))} ${colors.dim('# Automatically grants WRITE_SECURE_SETTINGS')}`);
     console.log(`     ${colors.dim('Or manually: adb shell pm grant com.devmode.app android.permission.WRITE_SECURE_SETTINGS')}`);
     console.log(`  4. Home screen widgets (3x1 & 1x1) and status bar toggles will now work!\n`);
   } else if (choice === '3') {
@@ -162,67 +163,31 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
       console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App'))} at ${colors.cyan(bridge.ip)} (Wi-Fi Bridge)`);
       console.log(`  ${symbols.arrow} Enabling Wireless Debugging via Mobile App...`);
 
-      const res = await callBridge(bridge.ip, 'wifi/on', bridge.port, 6000);
-      if (res.success && res.data) {
-        console.log(`  ${symbols.check} Wireless Debugging: ${colors.bold(colors.green('ENABLED'))}`);
-        const resolvedIp = res.data.ip || bridge.ip;
-        let resolvedPort = specifiedPort ? parseInt(specifiedPort, 10) : res.data.port;
+      const result = await connectViaBridge(bridge, {
+        specifiedPort,
+        log: (msg) => console.log(`  ${symbols.arrow} ${msg}`)
+      });
 
-        // If dynamic port was still initializing, give it a moment to resolve
-        if (!resolvedPort) {
-          console.log(`  ${symbols.arrow} Resolving dynamic Wireless ADB port...`);
-          for (let attempt = 0; attempt < 5; attempt++) {
-            await new Promise(r => setTimeout(r, 600));
-            const mdns = discoverMdnsServices();
-            if (mdns.length > 0 && mdns[0].port) {
-              resolvedPort = mdns[0].port;
-              break;
-            }
-          }
-        }
-
-        if (resolvedPort) {
-          console.log(`  ${symbols.check} Dynamic Port: ${colors.bold(colors.cyan(String(resolvedPort)))}`);
-          console.log(`  ${symbols.arrow} Connecting without cable: ${colors.bold(`adb connect ${resolvedIp}:${resolvedPort}`)}...`);
-          let connectResult = connectAdbWifi(resolvedIp, resolvedPort);
-
-          // If connection was actively refused (10061), adbd may have restarted on a fresh dynamic port
-          if (!connectResult.success && (connectResult.output.includes('10061') || connectResult.output.includes('refused') || connectResult.output.includes('failed to connect'))) {
-            console.log(`  ${symbols.info} Port ${resolvedPort} connection refused. Resolving fresh dynamic port via mDNS...`);
-            for (let attempt = 0; attempt < 3; attempt++) {
-              await new Promise(r => setTimeout(r, 1200));
-              const mdnsList = discoverMdnsServices();
-              const freshPort = mdnsList.length > 0 && mdnsList[0].port ? mdnsList[0].port : null;
-              if (freshPort && freshPort !== resolvedPort) {
-                console.log(`  ${symbols.check} Discovered updated dynamic port: ${colors.bold(colors.cyan(String(freshPort)))}`);
-                resolvedPort = freshPort;
-                connectResult = connectAdbWifi(resolvedIp, resolvedPort);
-                if (connectResult.success) break;
-              }
-            }
-          }
-
-          if (connectResult.success) {
-            saveConfig({ lastIp: resolvedIp, lastPort: resolvedPort });
-            console.log(`\n  ${colors.bold(colors.green('╔════════════════════════════════════════════════════════╗'))}`);
-            console.log(`  ${colors.bold(colors.green('║  ✔ WIRELESS ADB CONNECTED (WITHOUT CABLE)!             ║'))}`);
-            console.log(`  ${colors.bold(colors.green('╚════════════════════════════════════════════════════════╝'))}`);
-            console.log(`  ${symbols.bullet} Endpoint:  ${colors.bold(colors.cyan(`${resolvedIp}:${resolvedPort}`))}`);
-            console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
-            console.log(`\n  ${colors.bold(colors.yellow('🎉 Connected completely wireless over local Wi-Fi!'))}\n`);
-            return;
-          } else {
-            console.log(`\n  ${symbols.warn} ${colors.yellow('Connection attempt returned:')} ${colors.dim(connectResult.output)}`);
-            console.log(`  ${colors.yellow('Tip:')} If this is your first time, ensure your PC is paired in phone's Wireless Debugging.\n`);
-            return;
-          }
-        } else {
-          console.log(`  ${symbols.warn} ${colors.yellow('Wireless Debugging enabled, but dynamic port could not be determined automatically.')}`);
-          console.log(`  ${colors.dim('Check Settings > Wireless Debugging on your phone for the 5-digit port.')}`);
-          console.log(`  ${colors.dim('Connect with: devmode wifi on <port>')}\n`);
-          return;
-        }
+      if (result.success) {
+        saveConfig({ lastIp: result.ip, lastPort: result.port });
+        console.log(`\n  ${colors.bold(colors.green('╔════════════════════════════════════════════════════════╗'))}`);
+        console.log(`  ${colors.bold(colors.green('║  ✔ WIRELESS ADB CONNECTED (WITHOUT CABLE)!             ║'))}`);
+        console.log(`  ${colors.bold(colors.green('╚════════════════════════════════════════════════════════╝'))}`);
+        console.log(`  ${symbols.bullet} Endpoint:  ${colors.bold(colors.cyan(`${result.ip}:${result.port}`))}`);
+        console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
+        console.log(`\n  ${colors.bold(colors.yellow('🎉 Connected completely wireless over local Wi-Fi!'))}\n`);
+        return;
       }
+
+      console.log(`\n  ${symbols.warn} ${colors.yellow('Could not connect over Wi-Fi:')} ${colors.dim(result.output)}`);
+      if (!result.port) {
+        console.log(`  ${colors.dim('Check Settings > Wireless Debugging on your phone for the 5-digit port.')}`);
+        console.log(`  ${colors.dim('Connect with: devmode wifi on <port>')}\n`);
+      } else {
+        console.log(`  ${colors.yellow('Tip:')} Make sure this PC was authorized once over USB (or paired in Wireless Debugging),`);
+        console.log(`  ${colors.yellow('    ')} and that phone and PC are on the same Wi-Fi without AP isolation.\n`);
+      }
+      return;
     }
 
     // B. Check mDNS
@@ -554,6 +519,118 @@ async function handleGrant(targetDevice) {
   }
 }
 
+// `devmode auto`: one-key interactive menu over the existing commands (Expo-style hotkeys)
+async function handleAuto() {
+  const MENU = [
+    ['o', 'Toggle Developer Options'],
+    ['u', 'Toggle USB Debugging'],
+    ['w', 'Toggle Wireless Debugging (auto-connect over Wi-Fi)'],
+    ['c', 'Reconnect Wireless ADB (last known device)'],
+    ['s', 'Device status'],
+    ['g', 'Grant permissions to Dev Mode app'],
+    ['a', 'Start dev server (Expo / Native Studio)'],
+    ['d', 'Build & launch debug app (expo run:android)'],
+    ['b', 'Build debug APK'],
+    ['p', 'Build release APK'],
+    ['i', 'Install latest APK'],
+    ['l', 'Stream device logs'],
+    ['m', 'Open dev menu on phone'],
+    ['?', 'Show this menu'],
+    ['q', 'Quit']
+  ];
+  // These take over the terminal; leave the menu instead of returning to it
+  const DETACH = new Set(['a', 'd', 'l']);
+
+  const printMenu = () => {
+    console.clear();
+    banner();
+    console.log(`  ${colors.bold(colors.white('⚡ AUTO MODE'))} ${colors.dim('press a key to run a command')}\n`);
+    for (const [key, text] of MENU) {
+      console.log(`  ${colors.dim('›')} Press ${colors.bold(colors.yellow(key))} ${colors.dim('│')} ${text}`);
+    }
+    console.log('');
+  };
+
+  // Current ON/OFF state via ADB, or via the Mobile App bridge when no ADB device is attached
+  const currentState = async (device) => {
+    if (device && !device.isUnauthorized) {
+      const s = getDeviceStatus(device.serial);
+      return { dev: s.dev, usb: s.usb, wifi: s.wifi };
+    }
+    const bridge = await discoverBridge();
+    if (bridge && bridge.status) {
+      const on = (v) => v === 'enabled';
+      return { dev: on(bridge.status.developerOptions), usb: on(bridge.status.usbDebugging), wifi: on(bridge.status.wirelessDebugging) };
+    }
+    return null;
+  };
+
+  const actions = {
+    o: async (d) => { const st = await currentState(d); return st && st.dev ? handleDevOff(d) : handleDevOn(d); },
+    u: async (d) => { const st = await currentState(d); return handleUsb(d, st && st.usb ? 'off' : 'on'); },
+    w: async (d) => { const st = await currentState(d); return st && st.wifi ? handleWifiOff(d) : handleWifiOn(d); },
+    c: (d) => handleWifiConnect(d, null),
+    s: (d) => handleStatus(d),
+    g: (d) => handleGrant(d),
+    a: () => runExpoStart([]),
+    d: () => runExpoAndroid([]),
+    b: () => buildAndroid(false),
+    p: () => buildAndroid(true),
+    i: () => installApk(null, {}),
+    l: () => streamLogs(),
+    m: () => openDevMenu()
+  };
+
+  if (!process.stdin.isTTY) {
+    showHelp();
+    return;
+  }
+
+  const readKey = () => new Promise((resolve) => {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.once('data', (k) => resolve(String(k)));
+  });
+  const restoreTerminal = () => {
+    try { process.stdin.setRawMode(false); } catch (_) {}
+    process.stdin.pause();
+  };
+
+  process.stdin.setEncoding('utf8');
+  printMenu();
+
+  while (true) {
+    const key = await readKey();
+    if (key === 'q' || key === '\u0003') {
+      restoreTerminal();
+      console.log(`  ${colors.yellow('Bye!')}\n`);
+      process.exit(0);
+    }
+    if (key === '?' || key === 'h') {
+      printMenu();
+      continue;
+    }
+    const action = actions[key];
+    if (!action) continue;
+
+    console.clear();
+    restoreTerminal(); // sub-commands may prompt with readline; give them a normal terminal
+    const device = getTargetDevice();
+    if (DETACH.has(key)) {
+      await action(device);
+      return;
+    }
+    try {
+      await action(device);
+    } catch (err) {
+      console.log(`\n  ${symbols.cross} ${colors.red(err.message || String(err))}\n`);
+    }
+    console.log(`  ${colors.dim('Press any key to return to the menu...')}`);
+    await readKey();
+    printMenu();
+  }
+}
+
 async function main() {
   if (!checkAdbInstalled()) {
     banner();
@@ -570,6 +647,11 @@ async function main() {
   const targetDevice = getTargetDevice();
 
   switch (mainCmd) {
+    case 'auto':
+    case 'menu:auto':
+      await handleAuto();
+      break;
+
     case 'on':
       await handleDevOn(targetDevice);
       break;
@@ -708,7 +790,7 @@ async function main() {
         const isDebug = args.includes('--debug') || args.includes('-d');
         const rawTarget = subCmd === 'apk' ? extraArg : (subCmd || extraArg);
         const targetApk = (rawTarget && !rawTarget.startsWith('-')) ? rawTarget : null;
-        installApk(targetApk, { release: isRelease, debug: isDebug });
+        await installApk(targetApk, { release: isRelease, debug: isDebug });
       }
       break;
 

@@ -11,7 +11,7 @@
     <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square" alt="License" /></a>
   </p>
   <p>
-    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.2-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
+    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.10-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
     <img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-22C55E?style=flat-square" alt="Dependencies" />
     <img src="https://img.shields.io/badge/Wireless%20ADB-Auto--Connect-7F52FF?style=flat-square" alt="Wireless ADB" />
     <img src="https://img.shields.io/badge/Telemetry-Zero-10B981?style=flat-square" alt="Telemetry" />
@@ -31,52 +31,25 @@
 No installation required! Run instantly using `npx`:
 
 ```text
-   ___  ______   __  __  __  ____  ___  ____
-  / _ \/ __/\ \ / / /  |/  / __ \/ _ \/ __/
- / // / _/   \ V / / /|_/ / /_/ / // / _/  
-/____/___/    \_/ /_/  /_/\____/____/___/  
-  ⚡ Android Quick-Toggle & Wireless ADB CLI  v1.0.2
-  ───────────────────────────────────────────────────
+  ██████╗ ███████╗██╗   ██╗   ███╗   ███╗ ██████╗ ██████╗ ███████╗  │        ▄▄           ▄▄
+  ██╔══██╗██╔════╝██║   ██║   ████╗ ████║██╔═══██╗██╔══██╗██╔════╝  │        ▀██▄  ▄▄▄▄  ▄██▀
+  ██║  ██║█████╗  ██║   ██║   ██╔████╔██║██║   ██║██║  ██║█████╗    │       ▄████████████████▄
+  ██║  ██║██╔══╝  ╚██╗ ██╔╝   ██║╚██╔╝██║██║   ██║██║  ██║██╔══╝    │      ████  ████████  ████
+  ██████╔╝███████╗ ╚████╔╝    ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗  │      ████████████████████
+  ╚═════╝ ╚══════╝  ╚═══╝     ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝  │     (════════[● ON]═══════)
+   ⚡ Android Quick-Toggle & Wireless ADB CLI  v1.0.10
+   ─────────────────────────────────────────────────────────────────────────────────────────
 
-                    *:                    .*.
-                   *@@.                   @@#
-                   -@@%                  #@@*
-                    %@@:                :@@@
-                    .@@@.  .-*#%%#*-.   @@@:
-                     *@@#.#@@@@@@@@@@#.*@@#
-                      %@@@@@@@@@@@@@@@@@@@.
-                      -@@@@@@@@@@@@@@@@@@#
-                     :@@@@@@@@@@@@@@@@@@@@:
-                    :@@@%*%@@@@@@@@@@%*%@@@-
-             #%:    %@@%  .@@@@@@@@@@.  %@@@    .%%.
-           .%@@#   #@@@*   #@@@@@@@@#   *@@@*   -@@%:
-           %@@@:   @@@@#  .%@@@@@@@@@   #@@@@   .@@@@.
-         .%@@@.   *@@@@@@#@@@@@@@@@@@@#%@@@@@-   .%@@%.
-         %@@@:    #@@@@@@@@@@@@@@@@@@@@@@@@@@#    .@@@@.
-       .%@@@:     %#:......................:##     .@@@@.
-      :@@@@.      :#@@@@@@@@@@@@@@@@@@@@@@@@#-      .%@@@:
-     .@@@@.      .@@-..................:-:.:%@:      .@@@@.
-     :@@@*      :@*                  :#@@@%- -@:      *@@@:
-      %@@@:     #%                   @@@@@@@: %%     -@@@@
-       #@@@*    @-                  #@@@@@@@@.-@.   -@@@#
-        *@@@-  .@.                 .@@@@@@@@@-.@-  -@@@%
-         *@@@# .@                  .@@@@@@@@@-.@- -@@@#
-          *@@@-.@.                  @@@@@@@@@:.@:-@@@#
-           #@@* @-                  *@@@@@@@% -@ *@@%
-            --  #@                   #@@@@@% .@*  --
-                .@%                   :%@%* .%%
-                 .%@#*--------------------*#@%
-                   -%@@@@@@@@@@@@@@@@@@@@@@%-
               ⚡ DEV MODE : ACTIVATED [ON] ⚡
        [ Android Developer Options & Wireless ADB ]
 ```
 
 ```bash
 # Enable Developer Options only
-npx devmode on
+npx dev-mode-cli on
 
 # Enable USB Debugging specifically
-npx devmode usb on
+npx dev-mode-cli usb on
 ```
 
 Or install globally to use bare `devmode` anywhere:
@@ -133,7 +106,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
      ```bash
      devmode grant
      ```
-     *(Or via npx: `npx devmode grant`)*
+     *(Or via npx: `npx dev-mode-cli grant`)*
 
      > *Under the hood, this executes:*
      > ```bash
@@ -159,7 +132,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 🎨 **Official Green ASCII Icon** | `devmode icon` | Renders the official Android bugdroid + toggle switch ASCII art banner | `YES` |
 | 🌉 **Rootless Wi-Fi Bridge** | `devmode bridge` | Direct LAN bridge to Dev Mode Mobile App even when USB Debugging is OFF | `YES` |
 | 🚀 **Universal App Runner** | `devmode start` / `run` | Auto-detects project: starts Expo server for Expo apps or Native Studio for Kotlin/Android | `YES` |
-| ⚡ **Native Android Studio** | `devmode studio` / `start --native` | Lightweight Android Studio CLI for Kotlin/Java builds & live Logcat | `YES` |
+| ⚡ **Native Android Studio** | `devmode studio` / `start --native` | Lightweight Android Studio CLI for Kotlin/Java builds with Expo-style hotkeys (s sync, i reinstall, r restart, l logcat) | `YES` |
 | 📱 **Launch Debug Build** | `devmode debug:android` | Builds and launches debug app on Android device & auto-grants permissions | `YES` |
 | 🔄 **Instant Fast-Refresh** | `devmode reload` | Sends hot-reload signal to Metro bundler and connected device | `YES` |
 | 📋 **Open Dev Menu** | `devmode menu` | Opens React Native / Expo developer menu directly on device screen | `YES` |
@@ -192,9 +165,10 @@ devmode wifi connect           # Reconnect to discovered or cached wireless devi
 devmode wifi connect <ip:port> # Connect to a specific endpoint
 
 # Expo & Android Dev Suite
+devmode auto                   # Interactive menu: press one key (o/u/w/s/a/b/i...) to run any command
 devmode start                  # Auto-detects project: starts Expo server (or Native Studio for pure Android)
 devmode run                    # Alias for devmode start (works identically)
-devmode start --native         # Launch Native Studio for Kotlin/Gradle development (with live Logcat & hotkeys)
+devmode start --native         # Launch Native Studio for Kotlin/Gradle development (hotkeys: s sync, i reinstall, r restart, l logcat)
 devmode studio                 # Alias for devmode start --native (lightweight Android Studio replacement)
 devmode debug:android          # Build & launch debug app on device (npx expo run:android)
 devmode reload                 # Fast-refresh active app (Metro & device)
@@ -202,7 +176,7 @@ devmode menu                   # Open React Native Dev Menu on device screen
 devmode build:aab              # Compile production AAB via Gradle for Google Play (bundleRelease)
 devmode build:android          # Compile debug APK via Gradle (assembleDebug)
 devmode build:android --release# Compile release APK via Gradle (assembleRelease)
-devmode install:apk            # Auto-detect latest APK and install to device
+devmode install:apk --release  # Install latest APK of a variant (--release | --debug); never falls back to the other
 devmode clean                  # Clean Gradle and Metro project caches
 devmode logs                   # Stream filtered React Native / Expo logs
 devmode reverse                # Set up ADB reverse port for Metro (8081)
