@@ -6,16 +6,18 @@
 
   <p>
     <a href="https://www.npmjs.com/package/dev-mode-cli"><img src="https://img.shields.io/badge/npm-dev--mode--cli-CB3837?style=flat-square&logo=npm&logoColor=white" alt="NPM Package" /></a>
+    <a href="https://www.npmjs.com/package/dev-mode-cli"><img src="https://img.shields.io/npm/dt/dev-mode-cli?style=flat-square&logo=npm&logoColor=white&label=Downloads&color=EF4444" alt="NPM Total Downloads" /></a>
     <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-16.0+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" /></a>
     <a href="https://developer.android.com/tools/adb"><img src="https://img.shields.io/badge/Protocol-ADB%20%2F%20mDNS-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android ADB" /></a>
     <a href="#-license"><img src="https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square" alt="License" /></a>
   </p>
   <p>
-    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.10-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
+    <a href="https://github.com/Ryderhxrzy/Dev-Mode-CLI"><img src="https://img.shields.io/badge/Release-v1.0.11-0284C7?style=flat-square&logo=github&logoColor=white" alt="Release" /></a>
     <img src="https://img.shields.io/badge/Dependencies-Zero%20(Pure%20Node)-22C55E?style=flat-square" alt="Dependencies" />
     <img src="https://img.shields.io/badge/Wireless%20ADB-Auto--Connect-7F52FF?style=flat-square" alt="Wireless ADB" />
     <img src="https://img.shields.io/badge/Telemetry-Zero-10B981?style=flat-square" alt="Telemetry" />
     <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-06B6D4?style=flat-square" alt="Cross-Platform" />
+    <img src="https://img.shields.io/badge/Framework-Expo%20%7C%20React%20Native%20%7C%20Flutter%20%7C%20Kotlin%20%7C%20REST%20%26%20GraphQL-8B5CF6?style=flat-square" alt="Frameworks" />
   </p>
 
   <p>
@@ -180,6 +182,10 @@ devmode install:apk --release  # Install latest APK of a variant (--release | --
 devmode clean                  # Clean Gradle and Metro project caches
 devmode logs                   # Stream filtered React Native / Expo logs
 devmode reverse                # Set up ADB reverse port for Metro (8081)
+devmode api bridge             # Smart Local API Bridge with auto-reconnect & live [l] logs
+devmode api start              # All-in-One: start local backend server + API Bridge + live [l] logs
+devmode api bridge --status    # Inspect current API Bridge and ADB reverse status
+devmode api bridge --stop      # Safely remove API Bridge-owned reverse mapping
 
 # Hardware & System Tools
 devmode usb on                 # Enable USB Debugging specifically
@@ -188,6 +194,88 @@ devmode speed 0.5              # 2x Animation Speed Booster
 devmode speed 1.0              # Reset animations to standard speed
 devmode help                   # Show interactive help manual
 ```
+
+---
+
+## 🌐 Smart Local API Bridge — Test APIs Without Deployment
+
+Test locally running RESTful and GraphQL backends directly from a physical Android device (over USB or Wireless ADB) **without deploying your backend to a remote server or configuring LAN firewall rules**.
+
+### What It Does & How Automatic Detection Works
+
+Running a single command:
+
+```bash
+devmode api bridge
+# or run inside your backend folder to start the server + bridge + live logs in one step:
+devmode api start
+```
+
+1. **Detects Local Backends:** Inspects active TCP listeners on your PC (`netstat`/`ss`/`lsof`), probes candidate HTTP ports, and checks project files (`composer.json` + `artisan`, `package.json`, `manage.py`, `pyproject.toml`, `pom.xml`/`build.gradle`, `.csproj`) to label frameworks accurately without guessing solely from a port number.
+2. **All-in-One Backend + Bridge (`devmode api start`):** When run inside your backend project directory, automatically starts your local server (`php artisan serve`, `npm run start:dev` / `npm run dev`, `uvicorn`, `manage.py runserver`, `gradlew bootRun`, `dotnet run`, `rails server`, or custom `--cmd`), configures `adb reverse`, and enables real-time API request logs.
+3. **Expo-Style Live API Request Logs (`[l]`):** Press **`l`** at any time during `devmode api bridge` or `devmode api start` to toggle real-time HTTP/GraphQL request logs from your phone (`GET /api/users 200 14ms`, `POST /graphql (GetProfile) 200 28ms`).
+4. **Restores Saved Preferences:** Remembers your preferred backend port and Android device in `~/.devmode-cli.json` under `apiBridge` without touching existing settings.
+5. **Establishes Verified `adb reverse` Forwarding:** Maps `tcp:<port>` on the phone to `tcp:<port>` on your PC using `adb -s <SERIAL> reverse --no-rebind tcp:<port> tcp:<port>` so `http://127.0.0.1:<port>` inside the Android app reaches your PC's local server directly.
+6. **Monitors & Auto-Reconnects:** Watches device state changes via `adb track-devices` plus periodic verification. Note: automatic reconnection requires the `devmode api bridge` / `devmode api start` monitoring process to remain running in your terminal (no background daemon is installed).
+
+### CLI Commands & Options
+
+```bash
+devmode api bridge                         # One-command auto-detect, bridge, and live monitor
+devmode api start                          # All-in-One: start backend server + bridge + live [l] logs
+devmode api start --cmd "npm run dev"      # Start custom backend command + bridge + live [l] logs
+devmode api bridge --logs                  # Start bridge with Live API Request Logs enabled immediately
+devmode api bridge --port 8000             # Specify local backend port explicitly
+devmode api bridge --device <SERIAL>       # Target a specific Android device
+devmode api bridge --device-port 8001      # Use an alternate phone port if the host port conflicts
+devmode api bridge --health-path /up       # Optional HTTP path for health checks
+devmode api bridge --status                # Inspect live status and exit
+devmode api bridge --reconnect             # Verify or restore saved mapping once and exit
+devmode api bridge --stop                  # Remove only API Bridge-owned reverse mapping
+```
+
+### Example 1: Laravel REST API + Expo Development Build
+
+1. Start your Laravel backend on your PC:
+   ```bash
+   php artisan serve
+   ```
+2. Start the Smart API Bridge:
+   ```bash
+   devmode api bridge
+   ```
+3. In your Expo Development Build / React Native / Flutter / Kotlin app, point your development API URL to `127.0.0.1`:
+   ```javascript
+   const API_URL = __DEV__
+     ? "http://127.0.0.1:8000/api"
+     : "https://api.example.com/api";
+   ```
+4. Edit and save any Laravel controller or route—your phone immediately sees the changes without redeploying or recreating the bridge.
+
+### Example 2: GraphQL API (Node.js / NestJS / Apollo / FastAPI)
+
+REST and GraphQL use the exact same TCP reverse tunnel:
+
+```javascript
+const GRAPHQL_URL = __DEV__
+  ? "http://127.0.0.1:3000/graphql"
+  : "https://api.example.com/graphql";
+```
+
+### Automatic Reconnection Behavior
+
+While `devmode api bridge` is running:
+- **Device unplugged or Wi-Fi drops:** Logs `⚠ Android device disconnected` and waits without spamming failed ADB commands.
+- **Device reconnects:** Verifies authorization, checks `adb reverse --list`, restores `tcp:<port> -> tcp:<port>`, and prints `✓ API Bridge automatically restored`.
+- **ADB server restarts:** Detects the closed tracker stream, waits for ADB to return, and re-applies the reverse mapping.
+- **Backend restarts:** Keeps the ADB reverse mapping intact while reporting backend availability.
+
+### Port Conflicts, Ownership & Security
+
+- **Existing Bridges Protected:** Reserved ports such as Expo Metro (`8081`), DevMode Mobile App Bridge (`52882`), and Web Dashboard (`3288`) are never auto-selected or removed.
+- **Strict Ownership Tracking:** The CLI never runs `adb reverse --remove-all`. It records transport-bound ownership and only removes mappings it created itself. Pre-existing compatible mappings are reused without claiming ownership; conflicting mappings are reported with a safe alternative port suggestion.
+- **Cleartext Traffic Note:** Android 9+ blocks plain `http://` by default in release builds. Development builds (Expo Dev Client / React Native debug) typically allow `127.0.0.1` automatically; for custom native manifests, allow cleartext traffic for `127.0.0.1` in debug `network_security_config.xml` only.
+- **Privacy:** No credentials, auth tokens, cookies, or request/response bodies are logged or persisted.
 
 ---
 
