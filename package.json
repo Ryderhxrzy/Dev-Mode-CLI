@@ -1,6 +1,6 @@
 {
   "name": "dev-mode-cli",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Official CLI tool for Dev Mode — instantly toggle Android Developer Options, USB & Wireless ADB, and auto-connect over Wi-Fi without manual typing.",
   "main": "bin/dev-mode.js",
   "bin": {
@@ -11,7 +11,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node bin/dev-mode.js",
-    "test": "node --check bin/dev-mode.js && node --check lib/adb.js && node --check lib/bridge.js && node --check lib/config.js && node --check lib/dev.js && node --check lib/studio.js && node --check lib/ui.js"
+    "test": "node --check bin/dev-mode.js && node --check lib/adb.js && node --check lib/api-bridge.js && node --check lib/api-bridge-cli.js && node --check lib/bluetooth.js && node --check lib/bridge.js && node --check lib/config.js && node --check lib/dev.js && node --check lib/studio.js && node --check lib/ui.js && node --check lib/web.js"
   },
   "keywords": [
     "android",
