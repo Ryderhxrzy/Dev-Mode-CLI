@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 
 // bin/dev-mode.js - Dev Mode CLI entry point
-const { colors, symbols, banner, printDevModeIcon, printStatusItem, printKeyValue, printQuickActions } = require('../lib/ui');
+const {
+  colors,
+  symbols,
+  banner,
+  printDevModeIcon,
+  printStatusItem,
+  printKeyValue,
+  printQuickActions,
+  printWelcomeMessage,
+  printSignOffMessage,
+  printCheerMessage
+} = require('../lib/ui');
 const {
   checkAdbInstalled,
   getConnectedDevices,
+  getDetailedDevices,
   getTargetDevice,
   getDeviceIp,
   getDeviceWifiPort,
@@ -20,10 +32,11 @@ const {
   getDeviceStatus,
   setAnimationScales,
   grantAppPermission,
+  getAdbPerformanceMetrics,
   execAdb
 } = require('../lib/adb');
 const { saveConfig, getLastDevice } = require('../lib/config');
-const { discoverBridge, callBridge, connectViaBridge } = require('../lib/bridge');
+const { discoverBridge, discoverAllBridgesViaUdp, checkBridgeAvailable, callBridge, connectViaBridge } = require('../lib/bridge');
 const {
   runExpoStart,
   runExpoAndroid,
@@ -35,6 +48,8 @@ const {
   streamLogs,
   reversePort
 } = require('../lib/dev');
+const { startWebServer } = require('../lib/web');
+const { handleBluetoothMonitor, printBluetoothStatusSummary } = require('../lib/bluetooth');
 
 const args = process.argv.slice(2);
 
@@ -45,7 +60,8 @@ function showHelp() {
     ${colors.dim('or via npx:')} ${colors.cyan('npx dev-mode-cli')} ${colors.yellow('<command>')} [options]
 
   ${colors.bold('CORE COMMANDS:')}
-    ${colors.yellow('auto')}                Interactive menu: press one key to run any command below
+    ${colors.yellow('web [port]')}            Launch interactive Web Dashboard (default: http://localhost:3288)
+    ${colors.yellow('auto')}                  Interactive menu: press one key to run any command below
     ${colors.yellow('on')}                  Turn ON Developer Options (displays green ASCII icon)
     ${colors.yellow('off')}                 Turn OFF Developer Options only
     ${colors.yellow('icon')}                Display official Dev Mode green ASCII icon
@@ -60,6 +76,14 @@ function showHelp() {
     ${colors.yellow('wifi off')}              Disconnect and disable Wireless ADB
     ${colors.yellow('wifi connect [ip:port]')} Connect to device over Wi-Fi (auto-detects if omitted)
     ${colors.yellow('wifi disconnect')}       Disconnect current wireless sessions
+
+  ${colors.bold('SMART DEVICE MANAGER & PERFORMANCE:')}
+    ${colors.yellow('devices / list')}        Display all connected Android devices, IP, model & status
+    ${colors.yellow('use <serial|ip>')}       Switch active target Android device
+    ${colors.yellow('perf / stats')}          Live hardware monitor: CPU, RAM, battery % & temperature
+    ${colors.yellow('bt / bluetooth / music')} Live Bluetooth connection timer, battery % & Now Playing music
+    ${colors.yellow('watch / connect:auto')}  Auto-discover and reconnect paired devices over Wi-Fi
+    ${colors.yellow('mirror / cast')}         Live screen mirroring to PC browser (zero 3rd-party)
 
   ${colors.bold('USB & SYSTEM CONTROLS:')}
     ${colors.yellow('usb on')}              Turn ON USB Debugging
@@ -78,6 +102,9 @@ function showHelp() {
     ${colors.yellow('clean')}                  Clean Gradle and Metro project caches
     ${colors.yellow('logs')}                   Stream filtered React Native & Expo device logcat
     ${colors.yellow('reverse [port]')}         Set up ADB reverse port for Metro (default: 8081)
+    ${colors.yellow('api bridge [options]')}   Smart Local API Bridge with auto-reconnect & live [l] logs
+    ${colors.yellow('api start [options]')}    All-in-One: start local backend server + Smart API Bridge + live [l] logs
+    ${colors.yellow('api test [routes]')}      Test local API endpoints with live visual progress bar
 
   ${colors.bold('EXAMPLES:')}
     ${colors.gray('$')} devmode on
@@ -176,6 +203,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
         console.log(`  ${symbols.bullet} Endpoint:  ${colors.bold(colors.cyan(`${result.ip}:${result.port}`))}`);
         console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
         console.log(`\n  ${colors.bold(colors.yellow('🎉 Connected completely wireless over local Wi-Fi!'))}\n`);
+        printCheerMessage('wifi-on');
         return;
       }
 
@@ -201,6 +229,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
         saveConfig({ lastIp: found.ip, lastPort: found.port });
         console.log(`\n  ${colors.bold(colors.green('✔ Successfully connected to device wirelessly!'))}`);
         console.log(`  ${colors.dim(`Connected to: ${found.ip}:${found.port}`)}\n`);
+        printCheerMessage('wifi-on');
         return;
       }
     }
@@ -213,6 +242,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
       if (connectResult.success) {
         console.log(`\n  ${colors.bold(colors.green('✔ Successfully reconnected to device wirelessly!'))}`);
         console.log(`  ${colors.dim(`Connected to: ${last.lastIp}:${last.lastPort}`)}\n`);
+        printCheerMessage('wifi-on');
         return;
       }
     }
@@ -279,6 +309,7 @@ async function handleWifiOn(targetDevice, specifiedPort = null) {
     console.log(`  ${symbols.bullet} Endpoint:  ${colors.bold(colors.cyan(`${ip}:${port}`))}`);
     console.log(`  ${symbols.bullet} Status:    ${colors.bold(colors.green('ACTIVE & CONNECTED'))}`);
     console.log(`\n  ${colors.bold(colors.yellow('🎉 You can now safely unplug your USB cable!'))}\n`);
+    printCheerMessage('wifi-on');
   } else {
     console.log(`\n  ${symbols.warn} ${colors.yellow('Connection failed or timed out:')} ${colors.dim(connectResult.output)}`);
     console.log(`\n  ${colors.bold('Troubleshooting tips:')}`);
@@ -308,6 +339,7 @@ async function handleWifiOff(targetDevice) {
   }
 
   console.log(`  ${symbols.check} ${colors.green('Wireless ADB has been disconnected and disabled.')}\n`);
+  printCheerMessage('wifi-off');
 }
 
 async function handleWifiConnect(targetDevice, specifiedTarget) {
@@ -389,6 +421,10 @@ async function handleStatus(targetDevice) {
   }
   printKeyValue('Animation Scale', `${status.scale}x`);
 
+  try {
+    printBluetoothStatusSummary(targetDevice.serial);
+  } catch (_) {}
+
   console.log('');
 }
 
@@ -403,6 +439,7 @@ async function handleDevOn(targetDevice) {
       if (res.success) {
         console.log(`  ${symbols.check} ${colors.bold(colors.green('Developer Options: ENABLED'))}`);
         console.log(`  ${colors.dim('Settings updated directly via Mobile App Bridge (rootless & without ADB).')}\n`);
+        printWelcomeMessage();
         printQuickActions();
         return;
       }
@@ -417,6 +454,7 @@ async function handleDevOn(targetDevice) {
 
   console.log(`  ${symbols.check} ${colors.bold(colors.green('Developer Options: ENABLED'))}`);
   console.log(`  ${colors.dim('Dev Mode widgets and status bar notification synchronized.')}\n`);
+  printWelcomeMessage();
   printQuickActions();
 }
 
@@ -431,6 +469,7 @@ async function handleDevOff(targetDevice) {
       if (res.success) {
         console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}`);
         console.log(`  ${colors.dim('Settings updated directly via Mobile App Bridge.')}\n`);
+        printSignOffMessage();
         printQuickActions();
         return;
       }
@@ -444,6 +483,7 @@ async function handleDevOff(targetDevice) {
   disableDeveloperOptions(targetDevice.serial);
 
   console.log(`  ${symbols.check} ${colors.bold(colors.red('Developer Options: DISABLED'))}\n`);
+  printSignOffMessage();
   printQuickActions();
 }
 
@@ -460,6 +500,7 @@ async function handleUsb(targetDevice, subCommand) {
           const stateStr = subCommand === 'on' ? colors.bold(colors.green('ENABLED')) : colors.bold(colors.red('DISABLED'));
           console.log(`  ${symbols.check} USB Debugging: ${stateStr}`);
           console.log(`  ${colors.dim(`USB Debugging is now ${subCommand.toUpperCase()} on your device!`)}\n`);
+          printCheerMessage(subCommand === 'on' ? 'usb-on' : 'usb-off');
           printQuickActions();
           return;
         }
@@ -472,9 +513,11 @@ async function handleUsb(targetDevice, subCommand) {
   if (subCommand === 'on') {
     enableUsbDebugging(targetDevice.serial);
     console.log(`  ${symbols.check} ${colors.bold(colors.green('USB Debugging: ENABLED'))}\n`);
+    printCheerMessage('usb-on');
   } else if (subCommand === 'off') {
     disableUsbDebugging(targetDevice.serial);
     console.log(`  ${symbols.check} ${colors.bold(colors.red('USB Debugging: DISABLED'))}\n`);
+    printCheerMessage('usb-off');
   } else {
     console.log(`  ${symbols.warn} Usage: devmode usb <on|off>\n`);
   }
@@ -496,6 +539,7 @@ async function handleSpeed(targetDevice, scaleArg) {
   console.log(`  ${symbols.arrow} Setting system animation scale to ${colors.cyan(scale + 'x')}...`);
   setAnimationScales(scale, targetDevice.serial);
   console.log(`  ${symbols.check} ${colors.bold(colors.green(`Animation scales updated to ${scale}x (Speed Booster applied)`))}\n`);
+  printCheerMessage('speed');
 }
 
 async function handleGrant(targetDevice) {
@@ -535,11 +579,13 @@ async function handleAuto() {
     ['i', 'Install latest APK'],
     ['l', 'Stream device logs'],
     ['m', 'Open dev menu on phone'],
+    ['k', 'Bluetooth & Music Live Monitor (connected duration & Now Playing)'],
+    ['v', 'Live Screen Mirroring / Sharing (zero 3rd-party)'],
     ['?', 'Show this menu'],
     ['q', 'Quit']
   ];
   // These take over the terminal; leave the menu instead of returning to it
-  const DETACH = new Set(['a', 'd', 'l']);
+  const DETACH = new Set(['a', 'd', 'l', 'k']);
 
   const printMenu = () => {
     console.clear();
@@ -578,7 +624,9 @@ async function handleAuto() {
     p: () => buildAndroid(true),
     i: () => installApk(null, {}),
     l: () => streamLogs(),
-    m: () => openDevMenu()
+    m: () => openDevMenu(),
+    k: (d) => handleBluetoothMonitor(d, []),
+    v: (d) => handleMirror(d)
   };
 
   if (!process.stdin.isTTY) {
@@ -603,7 +651,8 @@ async function handleAuto() {
     const key = await readKey();
     if (key === 'q' || key === '\u0003') {
       restoreTerminal();
-      console.log(`  ${colors.yellow('Bye!')}\n`);
+      console.log('');
+      printSignOffMessage();
       process.exit(0);
     }
     if (key === '?' || key === 'h') {
@@ -631,7 +680,236 @@ async function handleAuto() {
   }
 }
 
+function renderProgressBar(percentage, width = 16) {
+  const p = Math.max(0, Math.min(100, Math.round(percentage)));
+  const filled = Math.round((p / 100) * width);
+  const empty = width - filled;
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${p}%`;
+}
+
+async function handleDevices(subCmd, extraArg) {
+  banner();
+  console.log(`  ${colors.bold('📱 SMART DEVICE MANAGER')}`);
+  console.log(`  ${colors.gray('─'.repeat(55))}\n`);
+
+  if (subCmd === 'use' || subCmd === 'select') {
+    const target = extraArg;
+    if (!target) {
+      console.log(`  ${symbols.warn} ${colors.yellow('Usage:')} devmode use <serial|ip>\n`);
+      return;
+    }
+    saveConfig({ defaultSerial: target, lastIp: target.includes('.') ? target.split(':')[0] : undefined });
+    console.log(`  ${symbols.check} ${colors.green('Target device set to:')} ${colors.bold(colors.cyan(target))}\n`);
+    return;
+  }
+
+  const adbList = getDetailedDevices();
+  let bridgeList = [];
+  try {
+    bridgeList = await discoverAllBridgesViaUdp(1200);
+  } catch (_) {}
+
+  const all = [];
+  const seenIps = new Set();
+
+  adbList.forEach(d => {
+    if (d.ip) seenIps.add(d.ip);
+    all.push({
+      id: d.serial,
+      model: d.model || 'Android Device',
+      android: d.androidVersion && d.androidVersion !== 'Unknown' ? `Android ${d.androidVersion}` : 'Unknown',
+      ip: d.ip || (d.isWifi ? d.serial : 'USB Only'),
+      type: d.isWifi ? 'Wireless ADB' : 'USB Cable',
+      status: d.state === 'device' ? 'Authorized' : d.state,
+      isAdb: true
+    });
+  });
+
+  for (const b of bridgeList) {
+    if (!seenIps.has(b.ip)) {
+      seenIps.add(b.ip);
+      let model = 'Android Device (Dev Mode)';
+      let androidVer = 'Unknown';
+      try {
+        const check = await checkBridgeAvailable(b.ip, b.port, 1000);
+        if (check.available && check.data) {
+          if (check.data.model) model = check.data.model;
+          if (check.data.androidVersion) androidVer = `Android ${check.data.androidVersion}`;
+        }
+      } catch (_) {}
+      all.push({
+        id: `${b.ip}:${b.port}`,
+        model,
+        android: androidVer,
+        ip: b.ip,
+        type: 'Wi-Fi Bridge',
+        status: 'Online',
+        isAdb: false
+      });
+    }
+  }
+
+  if (all.length === 0) {
+    console.log(`  ${symbols.cross} ${colors.red('No connected Android devices detected.')}`);
+    console.log(`  ${colors.dim('Connect your device via USB cable or ensure Dev Mode app is active on local Wi-Fi.')}\n`);
+    return;
+  }
+
+  console.log(`  Found ${colors.bold(colors.cyan(String(all.length)))} connected device(s):\n`);
+
+  all.forEach((dev, idx) => {
+    const isOnline = dev.status === 'Authorized' || dev.status === 'Online';
+    const statusBadge = isOnline ? colors.green(`[${dev.status.toUpperCase()}]`) : colors.yellow(`[${dev.status.toUpperCase()}]`);
+    console.log(`  ${colors.cyan(`[${idx + 1}]`)} ${colors.bold(dev.model)} ${colors.dim(`(${dev.android})`)}`);
+    console.log(`      ${symbols.bullet} Connection: ${colors.bold(dev.type)} ${statusBadge}`);
+    console.log(`      ${symbols.bullet} Serial / IP: ${colors.cyan(dev.id)}`);
+    console.log('');
+  });
+
+  console.log(`  ${colors.dim('Tip: Use "devmode use <serial|ip>" to switch your active target device.')}\n`);
+}
+
+async function handlePerf(targetDevice) {
+  banner();
+  console.log(`  ${colors.bold('⚡ DEVICE PERFORMANCE MONITOR')}`);
+  console.log(`  ${colors.gray('─'.repeat(55))}\n`);
+
+  let metrics = null;
+  const bridge = await tryBridgeFallback();
+  if (bridge) {
+    try {
+      const res = await callBridge(bridge.ip, 'metrics', bridge.port, 3000);
+      if (res.success && res.data) {
+        metrics = res.data;
+      }
+    } catch (_) {}
+  }
+
+  if (!metrics && targetDevice && !targetDevice.isUnauthorized) {
+    try {
+      metrics = getAdbPerformanceMetrics(targetDevice.serial);
+    } catch (_) {}
+  }
+
+  if (!metrics) {
+    console.log(`  ${symbols.cross} ${colors.red('Could not fetch performance metrics.')}`);
+    console.log(`  ${colors.dim('Ensure your phone is connected via USB/ADB or Dev Mode Mobile App is active on Wi-Fi.')}\n`);
+    return;
+  }
+
+  console.log(`  ${colors.bold(colors.cyan('🖥️  CPU METRICS:'))}`);
+  console.log(`    ${symbols.bullet} Active CPU Cores: ${colors.bold(String(metrics.cpu.cores))}`);
+  console.log('');
+
+  console.log(`  ${colors.bold(colors.green('💾 RAM UTILIZATION:'))}`);
+  const ramBar = renderProgressBar(metrics.ram.percentage);
+  const usedGb = (metrics.ram.usedMb / 1024).toFixed(1);
+  const totalGb = (metrics.ram.totalMb / 1024).toFixed(1);
+  console.log(`    ${symbols.bullet} Usage:  ${colors.green(ramBar)}`);
+  console.log(`    ${symbols.bullet} Memory: ${colors.bold(`${usedGb} GB`)} / ${colors.dim(`${totalGb} GB`)} (${metrics.ram.availableMb} MB Free)`);
+  console.log('');
+
+  console.log(`  ${colors.bold(colors.yellow('🔋 BATTERY HEALTH & STATUS:'))}`);
+  const battBar = renderProgressBar(metrics.battery.level);
+  console.log(`    ${symbols.bullet} Charge:       ${colors.yellow(battBar)}`);
+  if (metrics.battery.temperature > 0) {
+    console.log(`    ${symbols.bullet} Temperature:  ${colors.bold(`${metrics.battery.temperature}°C`)}`);
+  }
+  if (metrics.battery.voltage > 0) {
+    console.log(`    ${symbols.bullet} Voltage:      ${metrics.battery.voltage} mV`);
+  }
+  console.log(`    ${symbols.bullet} Power Source: ${colors.cyan(metrics.battery.plugged)} ${metrics.battery.isCharging ? colors.green('(Charging)') : ''}`);
+  console.log(`    ${symbols.bullet} Health:       ${colors.bold(metrics.battery.health)}`);
+  console.log('');
+
+  console.log(`  ${colors.bold(colors.magenta('🌡️  THERMAL STATE:'))}`);
+  console.log(`    ${symbols.bullet} Thermal State: ${colors.bold(colors.green(metrics.thermal.status))}`);
+  console.log('');
+}
+
+async function handleAutoConnect() {
+  banner();
+  console.log(`  ${colors.bold('🔄 AUTO WIRELESS ADB CONNECT')}`);
+  console.log(`  ${colors.gray('─'.repeat(55))}\n`);
+  console.log(`  ${symbols.info} Watching for paired Android devices on local network...`);
+  console.log(`  ${colors.dim('Press Ctrl+C to stop auto-reconnect service.\n')}`);
+
+  let isConnecting = false;
+  const attemptConnect = async () => {
+    if (isConnecting) return;
+    isConnecting = true;
+    try {
+      const mdnsList = discoverMdnsServices();
+      if (mdnsList.length > 0) {
+        const dev = mdnsList[0];
+        const res = connectAdbWifi(dev.ip, dev.port, 4000);
+        if (res.success) {
+          console.log(`  ${symbols.check} ${colors.green('Auto-connected via mDNS:')} ${colors.bold(colors.cyan(`${dev.ip}:${dev.port}`))}`);
+          return;
+        }
+      }
+
+      const bridge = await discoverBridge();
+      if (bridge && bridge.ip) {
+        const portRes = await callBridge(bridge.ip, 'wifi/port', bridge.port, 2000);
+        const port = (portRes.success && portRes.data && portRes.data.port) ? portRes.data.port : 5555;
+        const res = connectAdbWifi(bridge.ip, port, 4000);
+        if (res.success) {
+          console.log(`  ${symbols.check} ${colors.green('Auto-connected via Mobile App Bridge:')} ${colors.bold(colors.cyan(`${bridge.ip}:${port}`))}`);
+          return;
+        }
+      }
+    } catch (_) {} finally {
+      isConnecting = false;
+    }
+  };
+
+  await attemptConnect();
+  setInterval(attemptConnect, 4000);
+}
+
+async function handleMirror(targetDevice) {
+  banner();
+  console.log(`  ${colors.bold('📺 DEVICE SCREEN MIRRORING')}`);
+  console.log(`  ${colors.gray('─'.repeat(55))}\n`);
+
+  const bridge = await discoverBridge();
+  if (bridge && bridge.ip) {
+    console.log(`  ${symbols.check} Discovered Dev Mode Mobile App on Wi-Fi: ${colors.cyan(bridge.ip)}`);
+    const streamUrl = `http://${bridge.ip}:52882/api/screen/stream`;
+    console.log(`  ${symbols.arrow} Stream endpoint: ${colors.bold(colors.green(streamUrl))}`);
+    console.log(`  ${symbols.info} Requesting screen capture permission on device...`);
+
+    try {
+      await callBridge(bridge.ip, 'api/screen/start', 52882, 3000);
+      console.log(`  ${symbols.check} ${colors.green('Prompt dispatched!')} Tap "Start now" on your phone.`);
+    } catch (_) {}
+
+    console.log(`\n  ${colors.bold(colors.cyan('Opening live stream in your default browser...'))}`);
+    const { exec } = require('child_process');
+    const openCmd = process.platform === 'win32' ? `start "" "${streamUrl}"` :
+                    process.platform === 'darwin' ? `open "${streamUrl}"` : `xdg-open "${streamUrl}"`;
+    exec(openCmd);
+    console.log(`  ${colors.dim(`If it does not open automatically, visit: ${streamUrl}\n`)}`);
+    return;
+  }
+
+  console.log(`  ${symbols.warn} ${colors.yellow('No Dev Mode bridge detected on local Wi-Fi.')}`);
+  console.log(`  ${symbols.arrow} Starting Web Dashboard with Screen Mirroring viewer on ${colors.cyan('http://127.0.0.1:3288')}...\n`);
+  startWebServer({ open: true });
+}
+
 async function main() {
+  const mainCmd = (args[0] || '').toLowerCase();
+  const subCmd = (args[1] || '').toLowerCase();
+  const extraArg = args[2];
+
+  if (mainCmd === 'web' || mainCmd === 'dashboard' || mainCmd === 'ui') {
+    const portArg = parseInt(subCmd || extraArg, 10);
+    startWebServer({ port: !isNaN(portArg) && portArg > 0 ? portArg : undefined });
+    return;
+  }
+
   if (!checkAdbInstalled()) {
     banner();
     console.log(`  ${symbols.cross} ${colors.bold(colors.red('ADB is not found in your system PATH!'))}`);
@@ -639,10 +917,6 @@ async function main() {
     console.log(`  Download: ${colors.cyan('https://developer.android.com/tools/releases/platform-tools')}\n`);
     process.exit(1);
   }
-
-  const mainCmd = (args[0] || '').toLowerCase();
-  const subCmd = (args[1] || '').toLowerCase();
-  const extraArg = args[2];
 
   const targetDevice = getTargetDevice();
 
@@ -688,6 +962,83 @@ async function main() {
       await handleUsb(targetDevice, subCmd);
       break;
 
+    case 'devices':
+    case 'list':
+      await handleDevices(subCmd, extraArg);
+      break;
+
+    case 'use':
+    case 'select':
+      await handleDevices('use', subCmd || extraArg);
+      break;
+
+    case 'perf':
+    case 'stats':
+    case 'monitor':
+      await handlePerf(targetDevice);
+      break;
+
+    case 'bt':
+    case 'bluetooth':
+    case 'media':
+    case 'music':
+      if (!targetDevice || targetDevice.isUnauthorized) {
+        banner();
+        await handleNoDeviceGuide(targetDevice);
+      } else if (subCmd === 'album' || subCmd === 'cover' || subCmd === 'art') {
+        const { getBluetoothAndMediaSnapshotAsync, openInDefaultViewer } = require('../lib/bluetooth');
+        banner();
+        console.log(`  ${symbols.arrow} Fetching album cover artwork for currently playing track...`);
+        const snap = await getBluetoothAndMediaSnapshotAsync(targetDevice.serial);
+        const art = snap && snap.media && snap.media.activeSession && snap.media.activeSession.artworkUrl;
+        if (art) {
+          console.log(`  ${symbols.check} ${colors.green('Opening album artwork:')} ${colors.cyan(art)}\n`);
+          openInDefaultViewer(art);
+        } else {
+          console.log(`  ${symbols.warn} ${colors.yellow('No album artwork found for currently playing track.')}\n`);
+        }
+      } else if (subCmd === 'play') {
+        const query = args.slice(2).join(' ') || extraArg;
+        if (!query) {
+          banner();
+          console.log(`  ${symbols.warn} Usage: devmode music play <song or artist>\n`);
+        } else {
+          const { dispatchMediaPlayFromSearch } = require('../lib/bluetooth');
+          banner();
+          console.log(`  ${symbols.arrow} Requesting playback on phone: ${colors.bold(colors.cyan(query))}...`);
+          const ok = await dispatchMediaPlayFromSearch(query, targetDevice.serial);
+          if (ok) {
+            console.log(`  ${symbols.check} ${colors.bold(colors.green('Playback command dispatched to Spotify/Media player!'))}\n`);
+          } else {
+            console.log(`  ${symbols.cross} ${colors.red('Failed to dispatch playback command.')}\n`);
+          }
+        }
+      } else if (subCmd === 'next') {
+        execAdb(['shell', 'input', 'keyevent', '87'], targetDevice.serial);
+        console.log(`\n  ${symbols.check} ${colors.green('Skipped to Next Track on phone.')}\n`);
+      } else if (subCmd === 'prev' || subCmd === 'previous') {
+        execAdb(['shell', 'input', 'keyevent', '88'], targetDevice.serial);
+        console.log(`\n  ${symbols.check} ${colors.green('Returned to Previous Track on phone.')}\n`);
+      } else if (subCmd === 'pause' || subCmd === 'toggle') {
+        execAdb(['shell', 'input', 'keyevent', '85'], targetDevice.serial);
+        console.log(`\n  ${symbols.check} ${colors.green('Toggled Play / Pause on phone.')}\n`);
+      } else {
+        await handleBluetoothMonitor(targetDevice, args.slice(1));
+      }
+      break;
+
+    case 'watch':
+    case 'connect:auto':
+    case 'auto-connect':
+      await handleAutoConnect();
+      break;
+
+    case 'mirror':
+    case 'cast':
+    case 'screen':
+      await handleMirror(targetDevice);
+      break;
+
     case 'status':
     case 'info':
       await handleStatus(targetDevice);
@@ -704,8 +1055,15 @@ async function main() {
 
     case 'bridge':
       banner();
-      console.log(`  ${symbols.info} Searching for Dev Mode Mobile App on local Wi-Fi...`);
-      const bridgeInfo = await discoverBridge();
+      const ipParam = (/^\d+\.\d+\.\d+\.\d+$/.test(subCmd) ? subCmd :
+                       subCmd === '--ip' || subCmd === '-i' ? extraArg :
+                       args.find(a => /^\d+\.\d+\.\d+\.\d+$/.test(a))) || null;
+      if (ipParam) {
+        console.log(`  ${symbols.info} Connecting to Dev Mode Mobile App at ${colors.cyan(ipParam)}...`);
+      } else {
+        console.log(`  ${symbols.info} Searching for Dev Mode Mobile App on local Wi-Fi...`);
+      }
+      const bridgeInfo = await discoverBridge(ipParam);
       if (bridgeInfo && bridgeInfo.status) {
         console.log(`  ${symbols.check} ${colors.bold(colors.green('Connected to Dev Mode Mobile App!'))}\n`);
         printKeyValue('Phone IP Address', bridgeInfo.ip);
@@ -805,6 +1163,31 @@ async function main() {
 
     case 'reverse':
       reversePort(subCmd ? parseInt(subCmd, 10) : 8081);
+      break;
+
+    case 'api':
+    case 'api:bridge':
+    case 'api:start':
+    case 'api:test':
+    case 'test:api':
+      {
+        const { handleApiBridge, handleApiStart, handleApiTest, showApiBridgeHelp } = require('../lib/api-bridge-cli');
+        if (mainCmd === 'api:bridge') {
+          await handleApiBridge(args.slice(1));
+        } else if (mainCmd === 'api:start') {
+          await handleApiStart(args.slice(1));
+        } else if (mainCmd === 'api:test' || mainCmd === 'test:api' || subCmd === 'test' || subCmd === 'check') {
+          const testArgs = subCmd === 'test' || subCmd === 'check' ? args.slice(2) : args.slice(1);
+          await handleApiTest(testArgs);
+        } else if (subCmd === 'start' || subCmd === 'run' || subCmd === 'serve') {
+          await handleApiStart(args.slice(2));
+        } else if (!subCmd || subCmd === 'bridge' || subCmd.startsWith('-')) {
+          const rest = subCmd === 'bridge' ? args.slice(2) : args.slice(1);
+          await handleApiBridge(rest);
+        } else {
+          showApiBridgeHelp();
+        }
+      }
       break;
 
     case 'help':
