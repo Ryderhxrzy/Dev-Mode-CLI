@@ -143,6 +143,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 | 📲 **One-Tap APK Installer** | `devmode install:apk` | Auto-detects latest compiled APK and installs it to connected device | `YES` |
 | 🧹 **Deep Cache Cleaner** | `devmode clean` | Purges Gradle build caches and `.expo` Metro bundler caches | `YES` |
 | 📜 **Live Device Logcat** | `devmode logs` | Streams filtered React Native, Expo, and AndroidRuntime crash logs | `YES` |
+| 🎧 **Bluetooth & Music Monitor** | `devmode bt` / `bluetooth` | Shows connected Bluetooth device, live connection duration, L/R/Case battery %, audio codec, and Now Playing media with terminal controls | `YES` |
 | 🪶 **Zero Dependencies** | Built-in Node.js | Pure lightweight Node.js standard library with millisecond execution speed | `YES` |
 
 ---
@@ -154,7 +155,7 @@ Dev Mode supports two simple workflows depending on whether you want a standalon
 devmode on                     # Turn ON Developer Options (displays green ASCII icon)
 devmode off                    # Turn OFF Developer Options only
 devmode icon                   # Display official Dev Mode green ASCII art icon
-devmode status                 # Inspect live device details, IP, port, and status flags
+devmode status                 # Inspect live device details, IP, port, Bluetooth, and status flags
 
 # Mobile App Bridge & Permissions
 devmode bridge                 # Inspect direct Wi-Fi bridge to Mobile App (ADB bypassed)
@@ -184,10 +185,15 @@ devmode logs                   # Stream filtered React Native / Expo logs
 devmode reverse                # Set up ADB reverse port for Metro (8081)
 devmode api bridge             # Smart Local API Bridge with auto-reconnect & live [l] logs
 devmode api start              # All-in-One: start local backend server + API Bridge + live [l] logs
+devmode api test               # Scan & probe local API endpoints with visual progress bar (0% -> 100%)
+devmode api test /api /health  # Test specific candidate routes with latency and status badges
 devmode api bridge --status    # Inspect current API Bridge and ADB reverse status
 devmode api bridge --stop      # Safely remove API Bridge-owned reverse mapping
 
-# Hardware & System Tools
+# Hardware, Bluetooth & System Tools
+devmode bt                     # Live Bluetooth connection duration, earbuds battery % & Now Playing monitor
+devmode bluetooth --once       # Print one-shot Bluetooth & Music snapshot and exit
+devmode perf                   # Hardware monitor: CPU cores, RAM usage, battery health & thermal state
 devmode usb on                 # Enable USB Debugging specifically
 devmode usb off                # Disable USB Debugging specifically
 devmode speed 0.5              # 2x Animation Speed Booster
@@ -213,16 +219,19 @@ devmode api start
 
 1. **Detects Local Backends:** Inspects active TCP listeners on your PC (`netstat`/`ss`/`lsof`), probes candidate HTTP ports, and checks project files (`composer.json` + `artisan`, `package.json`, `manage.py`, `pyproject.toml`, `pom.xml`/`build.gradle`, `.csproj`) to label frameworks accurately without guessing solely from a port number.
 2. **All-in-One Backend + Bridge (`devmode api start`):** When run inside your backend project directory, automatically starts your local server (`php artisan serve`, `npm run start:dev` / `npm run dev`, `uvicorn`, `manage.py runserver`, `gradlew bootRun`, `dotnet run`, `rails server`, or custom `--cmd`), configures `adb reverse`, and enables real-time API request logs.
-3. **Expo-Style Live API Request Logs (`[l]`):** Press **`l`** at any time during `devmode api bridge` or `devmode api start` to toggle real-time HTTP/GraphQL request logs from your phone (`GET /api/users 200 14ms`, `POST /graphql (GetProfile) 200 28ms`).
-4. **Restores Saved Preferences:** Remembers your preferred backend port and Android device in `~/.devmode-cli.json` under `apiBridge` without touching existing settings.
-5. **Establishes Verified `adb reverse` Forwarding:** Maps `tcp:<port>` on the phone to `tcp:<port>` on your PC using `adb -s <SERIAL> reverse --no-rebind tcp:<port> tcp:<port>` so `http://127.0.0.1:<port>` inside the Android app reaches your PC's local server directly.
-6. **Monitors & Auto-Reconnects:** Watches device state changes via `adb track-devices` plus periodic verification. Note: automatic reconnection requires the `devmode api bridge` / `devmode api start` monitoring process to remain running in your terminal (no background daemon is installed).
+3. **In-Flight Live Endpoint Progress (`[l]`):** Press **`l`** at any time during `devmode api bridge` or `devmode api start` to stream instant in-flight request progress (`⏳ [REST] POST /api/v1/auth/login RUNNING...`), updating upon completion with latency and status (`✔ 200 48ms` or `✖ 500 120ms`).
+4. **Endpoint Progress Tester (`devmode api test` / `[t]`):** Probe local routes (`/`, `/api`, `/api/health`, `/graphql`, custom routes) with a visual animated progress bar (`[████████░░░░] 50%`) and on-device phone reachability test.
+5. **Restores Saved Preferences:** Remembers your preferred backend port and Android device in `~/.devmode-cli.json` under `apiBridge` without touching existing settings.
+6. **Establishes Verified `adb reverse` Forwarding:** Maps `tcp:<port>` on the phone to `tcp:<port>` on your PC using `adb -s <SERIAL> reverse --no-rebind tcp:<port> tcp:<port>` so `http://127.0.0.1:<port>` inside the Android app reaches your PC's local server directly.
+7. **Monitors & Auto-Reconnects:** Watches device state changes via `adb track-devices` plus periodic verification. Note: automatic reconnection requires the `devmode api bridge` / `devmode api start` monitoring process to remain running in your terminal (no background daemon is installed).
 
 ### CLI Commands & Options
 
 ```bash
 devmode api bridge                         # One-command auto-detect, bridge, and live monitor
 devmode api start                          # All-in-One: start backend server + bridge + live [l] logs
+devmode api test                           # Probe local endpoints with visual progress bar (0% -> 100%)
+devmode api test /api/users /graphql       # Test specific routes with live progress & latency
 devmode api start --cmd "npm run dev"      # Start custom backend command + bridge + live [l] logs
 devmode api bridge --logs                  # Start bridge with Live API Request Logs enabled immediately
 devmode api bridge --port 8000             # Specify local backend port explicitly
